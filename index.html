@@ -8,7 +8,7 @@
 <style>
   :root{
     --bg-void:#0a0906;
-    --ink:#050403;
+    --ink:#232323;
     --accent:#dcdcdc;
     --parchment:#e8e2d0;
     --line: rgba(220, 220, 220, 0.35);
@@ -23,7 +23,16 @@
     font-family:"Pirata One", serif; font-weight:400;
     font-size:clamp(32px,5vw,52px); margin:0 0 20px;
     color:var(--accent); letter-spacing:0.08em;
-    text-shadow:0 0 24px rgba(220, 220, 220, 0.5), 0 0 2px rgba(220, 220, 220, 0.8);
+    animation: titlePulse 3.5s ease-in-out infinite;
+  }
+
+  @keyframes titlePulse {
+    0%, 100% {
+      text-shadow: 0 0 16px rgba(220, 220, 220, 0.35), 0 0 2px rgba(220, 220, 220, 0.7);
+    }
+    50% {
+      text-shadow: 0 0 30px rgba(220, 220, 220, 0.65), 0 0 3px rgba(220, 220, 220, 0.9);
+    }
   }
   a {
     color:var(--parchment); font-size:1.4rem; margin:1rem;
@@ -40,6 +49,6 @@
 <body>
   <h1>Projects</h1>
   <a href="visualizer.html">Great Work Visualizer</a>
-  <a href="tuner.html">Tuner</a>
+  <a href="tuner.html">Alchemy Tuner</a>
 </body>
 </html>
