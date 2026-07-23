@@ -1,0 +1,1027 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>The Great Work - Audio Visualizer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,600;1,500&family=JetBrains+Mono:wght@400;500&family=VT323&family=Pirata+One&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg-void:#0a0906;
+    --ink:#050403;
+    --red:#c0432a;
+    --copper:#b5651d;
+    --ember:#c0432a;
+    --parchment:#e8e2d0;
+    --violet:#1a0f2e;
+    --line: rgba(201, 39, 39, 0.35);
+    --panel-bg: rgba(8,7,5,0.72);
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--ink);
+    font-family:'Pirata One', serif;
+    color:var(--parchment);
+  }
+  canvas{
+    position:fixed; inset:0; display:block; width:100%; height:100%;
+    background:var(--bg-void);
+  }
+  .mono{ font-family:'JetBrains Mono', monospace; letter-spacing:0.03em; }
+
+  /* ---------- 80s CRT / terminal skin ---------- */
+  #crtOverlay{
+    position:fixed; inset:0; z-index:3; pointer-events:none; mix-blend-mode:screen;
+    background:
+      repeating-linear-gradient(
+        to bottom,
+        rgba(255,255,255,0.05) 0px,
+        rgba(255,255,255,0.05) 1px,
+        transparent 1px,
+        transparent 3px
+      );
+    animation: flicker 6.2s infinite;
+  }
+  #crtVignette{
+    position:fixed; inset:0; z-index:3; pointer-events:none;
+    background: radial-gradient(ellipse at center, transparent 55%, rgba(0,0,0,0.55) 100%);
+  }
+  #crtSync{
+    position:fixed; left:0; right:0; height:60px; z-index:3; pointer-events:none;
+    background:linear-gradient(to bottom, rgba(255,255,255,0.05), transparent);
+    animation: sync 9s linear infinite;
+  }
+  @keyframes flicker{
+    0%,100%{ opacity:0.9; } 42%{ opacity:0.9; } 43%{ opacity:0.6; } 44%{ opacity:0.9; }
+    71%{ opacity:0.9; } 72%{ opacity:0.7; } 73%{ opacity:0.9; }
+  }
+  @keyframes sync{
+    0%{ top:-60px; } 100%{ top:100vh; }
+  }
+  body.no-scanlines #crtOverlay{ display:none; }
+  body.no-vignette #crtVignette{ display:none; }
+  body.no-sync #crtSync{ display:none; }
+
+  .fx-toggle-grid{ display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:10px; }
+  .fx-toggle-grid .sigil-btn{ font-size:14px; padding:8px 6px; text-align:center; }
+
+  #veil{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:18px; text-align:center; padding:24px;
+    background: radial-gradient(ellipse at center, rgba(26,15,46,0.55) 0%, rgba(5,4,3,0.92) 70%);
+    z-index:5; transition:opacity .8s ease;
+  }
+  #veil h1{
+    font-family:'Pirata One', monospace,; font-weight:400; font-size:clamp(32px,5vw,52px); margin:0;
+    color:var(--red); letter-spacing:0.08em;
+    text-shadow:0 0 24px rgba(201, 39, 39, 0.5), 0 0 2px rgba(201, 39, 39, 0.8);
+  }
+  #veil p{ margin:0; opacity:.75; font-size:16px; max-width:440px; line-height:1.5;}
+  #veil.hidden{ opacity:0; pointer-events:none; }
+
+  .sigil-btn{
+    appearance:none; border:1px solid var(--line); background:rgba(201,162,39,0.06);
+    color:var(--parchment); padding:10px 20px; border-radius:2px; cursor:pointer;
+    font-family:'VT323', serif; font-size:16px; letter-spacing:0.05em;
+    transition:all .25s ease; white-space:nowrap;
+  }
+  .sigil-btn:hover{ background:rgba(201,162,39,0.16); border-color:var(--red); }
+  .sigil-btn:disabled{ opacity:.35; cursor:not-allowed; }
+  .sigil-btn.active{ background:var(--red); color:var(--ink); border-color:var(--red); font-weight:600;}
+  .sigil-btn.record{ border-color:rgba(192,67,42,0.5); }
+  .sigil-btn.record.on{ background:var(--ember); color:var(--parchment); border-color:var(--ember);
+    animation:pulse-rec 1.4s infinite;}
+  @keyframes pulse-rec{ 0%,100%{box-shadow:0 0 0 0 rgba(192,67,42,0.55);} 50%{box-shadow:0 0 0 8px rgba(192,67,42,0);} }
+
+  #micBtn.on{ background:var(--ember); color:var(--parchment); border-color:var(--ember); }
+  #liveStatus.on::before{ content:'● '; color:var(--ember); animation:blink 1.2s infinite; }
+  @keyframes blink{ 0%,100%{opacity:1;} 50%{opacity:.2;} }
+
+  input[type=file]{ display:none; }
+
+  #panel{
+    position:fixed; top:20px; left:20px; z-index:4;
+    background:var(--panel-bg); border:2px solid var(--red); border-radius:0;
+    box-shadow:0 0 0 1px var(--ink), 0 0 18px rgba(201, 39, 39, 0.25) inset;
+    backdrop-filter: blur(6px); padding:16px 18px; width:330px;
+    transition:transform .35s ease, opacity .35s ease;
+    font-family:'VT323', monospace;
+    max-height:90vh; overflow-y:auto;
+  }
+  #panel.collapsed{ transform:translateX(-110%); opacity:0; pointer-events:none; }
+  #panel::-webkit-scrollbar{ width:6px; }
+  #panel::-webkit-scrollbar-thumb{ background:var(--line); }
+
+  #panel h2{ margin:0 0 12px; font-size:25px; letter-spacing:0.14em; text-transform:uppercase; text-align: center;
+    color:var(--red); font-weight:400; font-family:'VT323',monospace;}
+  #panel h2::before{ content:'🜂🜃 '; }
+  #panel h2::after{ content:' 🜁🜄'; }
+
+  #panel label, #panel select, #panel .row span{ font-family:'VT323', monospace; font-size:17px; }
+
+  select, .text-input{
+    width:100%; background:rgba(0,0,0,0.4); border:1px solid var(--line); color:var(--parchment);
+    padding:6px 8px; font-family:'VT323',monospace; font-size:16px; margin-bottom:10px;
+  }
+  .color-row{ display:flex; gap:10px; align-items:center; margin-bottom:10px; }
+  .color-row label{ flex:1; font-size:14px; opacity:.8; font-family:'JetBrains Mono',monospace; letter-spacing:0; }
+  input[type=color]{
+    width:34px; height:26px; border:1px solid var(--line); background:none; padding:0; cursor:pointer;
+  }
+  fieldset{ border:1px solid var(--line); margin:0 0 12px; padding:10px; }
+  fieldset legend{ font-family:'VT323',monospace; font-size:15px; color:var(--red); padding:0 6px; letter-spacing:0.08em; text-transform:uppercase; }
+
+  .row{ display:flex; gap:8px; margin-bottom:10px; flex-wrap:wrap; }
+  .row.tight .sigil-btn{ flex:1; padding:8px 6px; font-size:14px; text-align:center;}
+
+  #dropLabel{
+    display:block; width:100%; text-align:center; padding:14px; margin-bottom:12px;
+    border:1px dashed var(--line); border-radius:2px; cursor:pointer; font-size:15px;
+    transition:all .2s ease;
+  }
+  #dropLabel:hover{ border-color:var(--red); background:rgba(201,162,39,0.06); }
+
+  #trackName{ font-size:13px; opacity:.65; margin:0 0 12px; word-break:break-all; min-height:16px;}
+
+  .slider-row{ margin-bottom:10px; }
+  .slider-row label{ display:flex; justify-content:space-between; font-size:13px; opacity:.75; margin-bottom:4px; }
+  input[type=range]{
+    width:100%; -webkit-appearance:none; height:2px; background:var(--line); outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:12px; height:12px; border-radius:50%;
+    background:var(--red); cursor:pointer; border:1px solid var(--ink);
+  }
+
+  #readout{
+    display:flex; justify-content:space-between; font-size:12px; opacity:.7; margin-top:6px;
+    padding-top:10px; border-top:1px solid var(--line);
+  }
+
+  #toggle{
+    position:fixed; top:20px; left:20px; z-index:6; width:38px; height:38px;
+    border:1px solid var(--line); background:var(--panel-bg); color:var(--red);
+    border-radius:50%; cursor:pointer; font-size:18px; display:flex; align-items:center; justify-content:center;
+    backdrop-filter:blur(6px); transition:transform .2s ease;
+  }
+  #toggle:hover{ transform:scale(1.08); }
+
+  a#dl{ display:none; }
+
+  ::selection{ background:var(--red); color:var(--ink); }
+</style>
+</head>
+<body>
+
+<canvas id="canvas"></canvas>
+<div id="crtOverlay"></div>
+<div id="crtVignette"></div>
+<div id="crtSync"></div>
+
+<div id="veil">
+  <h1>The Great Work</h1>
+  <p>Load a track. The seal will draw itself from its frequencies — moving through the steps of the alchemical process as the work unfolds.</p>
+  <label id="dropLabel2" class="sigil-btn" for="fileInput" style="padding:14px 28px; font-size:18px;">Choose a track</label>
+  <button id="veilLiveBtn" class="sigil-btn" style="padding:14px 28px; font-size:18px; border-color:var(--ember);">Go Live (microphone)</button>
+</div>
+
+<button id="toggle" title="Show / hide panel">☽</button>
+
+<div id="panel" class="collapsed">
+  <h2>Instrument</h2>
+
+  <fieldset>
+    <legend>Input Source</legend>
+    <div class="row tight" style="margin-bottom:10px;">
+      <button class="sigil-btn input-mode-btn active" data-mode="file">FILE</button>
+      <button class="sigil-btn input-mode-btn" data-mode="live">LIVE</button>
+    </div>
+
+    <div id="fileControls">
+      <label id="dropLabel" for="fileInput">Draw from a sound file</label>
+      <input type="file" id="fileInput" accept="audio/*">
+      <p id="trackName" class="mono"></p>
+      <div class="row tight">
+        <button class="sigil-btn" id="playBtn" disabled>PLAY</button>
+        <button class="sigil-btn" id="stopBtn" disabled>STOP</button>
+      </div>
+    </div>
+
+    <div id="liveControls" style="display:none;">
+      <select id="micSelect" style="display:none;"></select>
+      <button class="sigil-btn" id="micBtn" style="width:100%;">Enable Microphone</button>
+      <p id="liveStatus" class="mono" style="font-size:13px; opacity:.7; margin:8px 0 0;">Not listening</p>
+    </div>
+  </fieldset>
+
+  <div class="row tight">
+    <button class="sigil-btn record" id="recBtn" disabled>RECORD</button>
+  </div>
+
+  <div class="slider-row">
+    <label><span>Sensitivity</span><span id="sensVal" class="mono">1.0</span></label>
+    <input type="range" id="sensSlider" min="0.4" max="2.2" step="0.05" value="1.0">
+  </div>
+
+  <fieldset>
+    <legend>Glyph Ring</legend>
+    <select id="glyphSetSelect">
+      <option value="planetary">Planetary (7)</option>
+      <option value="zodiac">Zodiac (12)</option>
+      <option value="alchemical">Alchemical (7)</option>
+      <option value="elemental">Elemental (4)</option>
+      <option value="tarot">Tarot (22)</option>
+      <option value="runic">Elder Futhark (12)</option>
+      <option value="custom">Custom…</option>
+    </select>
+    <input type="text" id="customGlyphs" class="text-input" placeholder="type symbols, comma separated: ☉,☽,☿"
+      style="display:none;">
+  </fieldset>
+
+  <fieldset>
+    <legend>Central Sigil</legend>
+    <div class="slider-row" style="margin-bottom:0;">
+      <label><span>Points</span><span id="sigilPtsVal" class="mono">7</span></label>
+      <input type="range" id="sigilPtsSlider" min="3" max="12" step="1" value="7">
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Display FX</legend>
+    <div class="fx-toggle-grid">
+      <button class="sigil-btn fx-btn active" id="fxScanlines" data-fx="scanlines">Scanlines</button>
+      <button class="sigil-btn fx-btn active" id="fxVignette" data-fx="vignette">Vignette</button>
+      <button class="sigil-btn fx-btn active" id="fxSync" data-fx="sync">Sync Roll</button>
+      <button class="sigil-btn fx-btn active" id="fxPixelate" data-fx="pixelate">Pixelate</button>
+    </div>
+    <div class="slider-row" id="pixelSizeRow">
+      <label><span>Pixel Size</span><span id="pixelSizeVal" class="mono">4</span></label>
+      <input type="range" id="pixelSizeSlider" min="2" max="16" step="1" value="4">
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Palette</legend>
+    <div class="color-row">
+      <label>Void / bg</label><input type="color" id="colorBg" value="#0a0906">
+      <label>Primary</label><input type="color" id="colorA" value="#c9a227">
+      <label>Accent</label><input type="color" id="colorB" value="#c9a227">
+    </div>
+    <div class="row tight" style="margin-bottom:10px;">
+      <button class="sigil-btn stage-set-btn active" data-set="greatWork">Great Work</button>
+      <button class="sigil-btn stage-set-btn" data-set="energy">Energy</button>
+    </div>
+  </fieldset>
+
+  <div class="row tight" style="margin-top:2px;">
+    <button class="sigil-btn stage-btn active" data-stage="auto">Auto</button>
+    <button class="sigil-btn stage-btn" data-stage="custom">Custom</button>
+  </div>
+  <div id="stageIndividualButtons" class="row tight"></div>
+
+  <div id="readout" class="mono">
+    <span id="stageLabel">—</span>
+    <span id="timeLabel">00:00 / 00:00</span>
+  </div>
+</div>
+
+<a id="dl"></a>
+
+<audio id="audioEl" crossorigin="anonymous" style="display:none;"></audio>
+
+<script>
+(() => {
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const audioEl = document.getElementById('audioEl');
+  const fileInput = document.getElementById('fileInput');
+  const playBtn = document.getElementById('playBtn');
+  const stopBtn = document.getElementById('stopBtn');
+  const recBtn = document.getElementById('recBtn');
+  const trackName = document.getElementById('trackName');
+  const veil = document.getElementById('veil');
+  const panel = document.getElementById('panel');
+  const toggleBtn = document.getElementById('toggle');
+  const sensSlider = document.getElementById('sensSlider');
+  const sensVal = document.getElementById('sensVal');
+  const stageLabel = document.getElementById('stageLabel');
+  const timeLabel = document.getElementById('timeLabel');
+  const stageButtons = [...document.querySelectorAll('.stage-btn')];
+  const dl = document.getElementById('dl');
+  const inputModeButtons = [...document.querySelectorAll('.input-mode-btn')];
+  const fileControls = document.getElementById('fileControls');
+  const liveControls = document.getElementById('liveControls');
+  const micBtn = document.getElementById('micBtn');
+  const micSelect = document.getElementById('micSelect');
+  const liveStatus = document.getElementById('liveStatus');
+
+  let dpr = Math.max(1, window.devicePixelRatio || 1);
+
+  // Pixelate FX buffer — declared here (before resize) so resize() can
+  // keep it matched to the main canvas's actual pixel dimensions.
+  let pixelateOn = true;
+  let pixelSize = 4;
+  const pixelCanvas = document.createElement('canvas');
+  const pixelCtx = pixelCanvas.getContext('2d');
+  pixelCtx.imageSmoothingEnabled = false;
+  function updatePixelCanvasSize(){
+    pixelCanvas.width = Math.max(1, Math.floor(canvas.width / pixelSize));
+    pixelCanvas.height = Math.max(1, Math.floor(canvas.height / pixelSize));
+  }
+
+  function resize(){
+    dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = window.innerWidth * dpr;
+    canvas.height = window.innerHeight * dpr;
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+    updatePixelCanvasSize();
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Audio graph ----------
+  // Design note: analyser and recDest are permanent and shared. Whichever
+  // source is "active" (file element or microphone) connects INTO the
+  // analyser. Only the file source also connects to speakers — the mic
+  // deliberately does NOT, to avoid feedback squeal on a live rig.
+  let audioCtx, analyser, sourceNode, recDest, freqData, bandCount;
+  let micStream = null, micSourceNode = null;
+  let activeSourceNode = null;
+  let inputMode = 'file'; // 'file' | 'live'
+  let liveStartTime = 0;
+  let sensitivity = 1.0;
+  sensSlider.addEventListener('input', () => {
+    sensitivity = parseFloat(sensSlider.value);
+    sensVal.textContent = sensitivity.toFixed(2);
+  });
+
+  function initAudio(){
+    if (audioCtx) return;
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyser = audioCtx.createAnalyser();
+    analyser.fftSize = 2048;
+    analyser.smoothingTimeConstant = 0.78;
+    bandCount = analyser.frequencyBinCount;
+    freqData = new Uint8Array(bandCount);
+    recDest = audioCtx.createMediaStreamDestination();
+    analyser.connect(recDest);
+
+    sourceNode = audioCtx.createMediaElementSource(audioEl);
+  }
+
+  function disconnectActiveSource(){
+    if (activeSourceNode){
+      try{ activeSourceNode.disconnect(); }catch(e){}
+    }
+    activeSourceNode = null;
+  }
+
+  function connectFileSource(){
+    disconnectActiveSource();
+    sourceNode.connect(analyser);
+    sourceNode.connect(audioCtx.destination);
+    activeSourceNode = sourceNode;
+  }
+
+  async function connectLiveSource(deviceId){
+    const constraints = {
+      audio: {
+        echoCancellation:false, noiseSuppression:false, autoGainControl:false,
+        ...(deviceId ? { deviceId:{ exact: deviceId } } : {}),
+      }
+    };
+    const stream = await navigator.mediaDevices.getUserMedia(constraints);
+    // stop any prior mic stream before adopting the new one
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+    micStream = stream;
+    disconnectActiveSource();
+    micSourceNode = audioCtx.createMediaStreamSource(stream);
+    micSourceNode.connect(analyser); // deliberately NOT connected to destination
+    activeSourceNode = micSourceNode;
+  }
+
+  function stopLiveSource(){
+    if (micStream){ micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    if (micSourceNode){ try{ micSourceNode.disconnect(); }catch(e){} micSourceNode = null; }
+    if (activeSourceNode === null) return;
+    activeSourceNode = null;
+  }
+
+  async function populateMicList(){
+    try{
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const inputs = devices.filter(d => d.kind === 'audioinput');
+      micSelect.innerHTML = '';
+      inputs.forEach((d,i) => {
+        const opt = document.createElement('option');
+        opt.value = d.deviceId;
+        opt.textContent = d.label || `Input ${i+1}`;
+        micSelect.appendChild(opt);
+      });
+      micSelect.style.display = inputs.length > 1 ? 'block' : 'none';
+    } catch(e){ /* labels unavailable until permission granted; harmless */ }
+  }
+
+  // ---------- Input mode toggle ----------
+  inputModeButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      inputModeButtons.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      const mode = btn.dataset.mode;
+      inputMode = mode;
+      if (mode === 'file'){
+        liveControls.style.display = 'none';
+        fileControls.style.display = 'block';
+        stopLiveSource();
+        micBtn.textContent = 'Enable Microphone';
+        micBtn.classList.remove('on');
+        liveStatus.textContent = 'Not listening';
+        liveStatus.classList.remove('on');
+        if (audioCtx && audioEl.src){ initAudio(); connectFileSource(); recBtn.disabled = false; }
+        else { recBtn.disabled = true; }
+      } else {
+        fileControls.style.display = 'none';
+        liveControls.style.display = 'block';
+        if (playing){ audioEl.pause(); playBtn.textContent = 'PLAY'; playing = false; }
+        recBtn.disabled = !micStream;
+      }
+    });
+  });
+
+  micBtn.addEventListener('click', async () => {
+    initAudio();
+    if (audioCtx.state === 'suspended') await audioCtx.resume();
+    if (!micStream){
+      try{
+        liveStatus.textContent = 'Requesting microphone…';
+        await connectLiveSource(micSelect.value || undefined);
+        await populateMicList();
+        micBtn.textContent = 'Disable Microphone';
+        micBtn.classList.add('on');
+        liveStatus.textContent = 'Listening';
+        liveStatus.classList.add('on');
+        liveStartTime = performance.now();
+        recBtn.disabled = false;
+        veil.classList.add('hidden');
+        panel.classList.remove('collapsed');
+      } catch(err){
+        liveStatus.textContent = 'Microphone access denied or unavailable';
+        liveStatus.classList.remove('on');
+      }
+    } else {
+      stopLiveSource();
+      micBtn.textContent = 'Enable Microphone';
+      micBtn.classList.remove('on');
+      liveStatus.textContent = 'Not listening';
+      liveStatus.classList.remove('on');
+      recBtn.disabled = true;
+    }
+  });
+
+  // ---------- Display FX toggles ----------
+  document.getElementById('fxScanlines').addEventListener('click', function(){
+    document.body.classList.toggle('no-scanlines');
+    this.classList.toggle('active', !document.body.classList.contains('no-scanlines'));
+  });
+  document.getElementById('fxVignette').addEventListener('click', function(){
+    document.body.classList.toggle('no-vignette');
+    this.classList.toggle('active', !document.body.classList.contains('no-vignette'));
+  });
+  document.getElementById('fxSync').addEventListener('click', function(){
+    document.body.classList.toggle('no-sync');
+    this.classList.toggle('active', !document.body.classList.contains('no-sync'));
+  });
+
+  // ---------- Pixelate FX controls ----------
+  // How it works: each frame, once everything is drawn at full resolution,
+  // we shrink the whole picture down to a tiny offscreen canvas, then blow
+  // it back up with smoothing turned off. Nearest-neighbor scaling turns
+  // smooth gradients and curves into hard, blocky squares — the classic
+  // low-res look. "Pixel Size" is how many real screen pixels each of
+  // those blocks covers; bigger = chunkier / more 80s, lower = subtler.
+  const fxPixelateBtn = document.getElementById('fxPixelate');
+  const pixelSizeRow = document.getElementById('pixelSizeRow');
+  const pixelSizeSlider = document.getElementById('pixelSizeSlider');
+  const pixelSizeVal = document.getElementById('pixelSizeVal');
+
+  fxPixelateBtn.addEventListener('click', function(){
+    pixelateOn = !pixelateOn;
+    this.classList.toggle('active', pixelateOn);
+    pixelSizeRow.style.opacity = pixelateOn ? '1' : '0.4';
+  });
+  pixelSizeSlider.addEventListener('input', () => {
+    pixelSize = parseInt(pixelSizeSlider.value);
+    pixelSizeVal.textContent = pixelSize;
+    updatePixelCanvasSize();
+  });
+
+  micSelect.addEventListener('change', async () => {
+    if (micStream) await connectLiveSource(micSelect.value);
+  });
+
+  document.getElementById('veilLiveBtn').addEventListener('click', () => {
+    const liveModeBtn = inputModeButtons.find(b => b.dataset.mode === 'live');
+    liveModeBtn.click();
+    panel.classList.remove('collapsed');
+    micBtn.click();
+  });
+
+  fileInput.addEventListener('change', (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    initAudio();
+    connectFileSource();
+    const url = URL.createObjectURL(file);
+    audioEl.src = url;
+    trackName.textContent = file.name;
+    playBtn.disabled = false;
+    recBtn.disabled = false;
+    veil.classList.add('hidden');
+    panel.classList.remove('collapsed');
+  });
+
+  let playing = false;
+  playBtn.addEventListener('click', () => {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (!playing){
+      audioEl.play();
+      playBtn.textContent = 'PAUSE';
+      stopBtn.disabled = false;
+      playing = true;
+    } else {
+      audioEl.pause();
+      playBtn.textContent = 'PLAY';
+      playing = false;
+    }
+  });
+  stopBtn.addEventListener('click', () => {
+    audioEl.pause();
+    audioEl.currentTime = 0;
+    playBtn.textContent = 'PLAY';
+    playing = false;
+  });
+  audioEl.addEventListener('ended', () => {
+    playBtn.textContent = 'PLAY';
+    playing = false;
+  });
+
+  toggleBtn.addEventListener('click', () => panel.classList.toggle('collapsed'));
+
+  // ======================================================================
+  // CONFIG — the settings most people will want to hand-edit live here.
+  // Everything below is also exposed in the on-screen panel, but if you
+  // want a permanent default baked into the file, change it here.
+  // ======================================================================
+  const CONFIG = {
+    // Named glyph sets. Add your own array here and it'll show up if you
+    // also add an <option> for it in the "Glyph Ring" <select> in the HTML.
+    glyphSets: {
+      planetary: ['♄','♃','♂','☉','♀','☿','☽'],                     // Saturn -> Moon
+      zodiac:    ['♈','♉','♊','♋','♌','♍','♎','♏','♐','♑','♒','♓'],
+      elemental: ['🜂','🜃','🜁','🜄'],                                  // fire earth air water
+      alchemical: ['🜂','🜃','🜁','🜄','☿','☽','☉'],                     // elements + mercury, moon, sun
+      tarot: ['🃠','🃡','🃢','🃣','🃤','🃥','🃦','🃧','🃨','🃩','🃪','🃫','🃬','🃭','🃮','🃯','🃰','🃱','🃲','🃳','🃴','🃵'],
+      runic:     ['ᚠ','ᚢ','ᚦ','ᚨ','ᚱ','ᚲ','ᚷ','ᚹ','ᚺ','ᚾ','ᛁ','ᛃ'],
+    },
+    activeGlyphSet: 'planetary',
+    activeGlyphs: [],          // populated by applyGlyphSet() below
+    sigilPoints: 7,            // 3 = triangle, 12 = twelve-pointed star
+    customPalette: {           // used when stage = 'custom'
+      bg: [10,9,6], a:[201,162,39], b:[201,162,39],
+    },
+  };
+  function applyGlyphSet(name){
+    CONFIG.activeGlyphSet = name;
+    CONFIG.activeGlyphs = CONFIG.glyphSets[name] ? [...CONFIG.glyphSets[name]] : CONFIG.activeGlyphs;
+  }
+  applyGlyphSet('planetary');
+
+  function hexToRgb(hex){
+    const m = hex.replace('#','');
+    const n = parseInt(m, 16);
+    return [ (n>>16)&255, (n>>8)&255, n&255 ];
+  }
+
+  // ---------- Glyph ring UI ----------
+  const glyphSetSelect = document.getElementById('glyphSetSelect');
+  const customGlyphsInput = document.getElementById('customGlyphs');
+  glyphSetSelect.addEventListener('change', () => {
+    if (glyphSetSelect.value === 'custom'){
+      customGlyphsInput.style.display = 'block';
+      updateCustomGlyphs();
+    } else {
+      customGlyphsInput.style.display = 'none';
+      applyGlyphSet(glyphSetSelect.value);
+    }
+  });
+  function updateCustomGlyphs(){
+    const raw = customGlyphsInput.value.trim();
+    const list = raw.split(',').map(s => s.trim()).filter(Boolean);
+    CONFIG.activeGlyphs = list.length ? list : CONFIG.glyphSets.planetary;
+  }
+  customGlyphsInput.addEventListener('input', updateCustomGlyphs);
+
+  // ---------- Sigil point count UI ----------
+  const sigilPtsSlider = document.getElementById('sigilPtsSlider');
+  const sigilPtsVal = document.getElementById('sigilPtsVal');
+  sigilPtsSlider.addEventListener('input', () => {
+    CONFIG.sigilPoints = parseInt(sigilPtsSlider.value);
+    sigilPtsVal.textContent = CONFIG.sigilPoints;
+  });
+
+  // ---------- Color picker UI ----------
+  const colorBg = document.getElementById('colorBg');
+  const colorA = document.getElementById('colorA');
+  const colorB = document.getElementById('colorB');
+  function syncCustomPalette(){
+    CONFIG.customPalette.bg = hexToRgb(colorBg.value);
+    CONFIG.customPalette.a = hexToRgb(colorA.value);
+    CONFIG.customPalette.b = hexToRgb(colorB.value);
+  }
+  [colorBg, colorA, colorB].forEach(el => el.addEventListener('input', syncCustomPalette));
+  syncCustomPalette();
+
+  // ---------- Stage sets ----------
+  // Two named sets of "stages" the palette can move through. Add a new
+  // array here (and one line in the STAGE_SETS object) to create another
+  // set of your own — the button row and math below adapt automatically
+  // to however many stages a set has.
+  const STAGE_SETS = {
+    greatWork: [
+      { name:'Nigredo',    bg:[10,9,6],     a:[26,15,46],   b:[201,162,39] },
+      { name:'Albedo',     bg:[14,14,16],   a:[232,226,208],b:[155,163,168] },
+      { name:'Citrinitas', bg:[18,12,4],    a:[201,162,39], b:[217,142,47] },
+      { name:'Rubedo',     bg:[16,6,4],     a:[138,46,31],  b:[192,67,42] },
+    ],
+    energy: [ // seven chakras, root -> crown
+      { name:'Root',         bg:[16,3,3],  a:[120,10,10],  b:[214,40,40]  },
+      { name:'Sacral',       bg:[18,9,2],  a:[168,84,18],  b:[242,121,45] },
+      { name:'Solar Plexus', bg:[18,15,2], a:[168,138,16], b:[244,208,63] },
+      { name:'Heart',        bg:[2,15,6],  a:[24,90,32],   b:[76,175,80]  },
+      { name:'Throat',       bg:[2,8,18],  a:[13,71,161],  b:[33,150,243] },
+      { name:'Third Eye',    bg:[6,3,20],  a:[40,53,147],  b:[92,107,192] },
+      { name:'Crown',        bg:[12,2,16], a:[106,27,154], b:[186,104,200]},
+    ],
+  };
+  let activeStageSet = 'greatWork';
+
+  function buildStageButtons(){
+    const container = document.getElementById('stageIndividualButtons');
+    container.innerHTML = '';
+    STAGE_SETS[activeStageSet].forEach((stage, i) => {
+      const btn = document.createElement('button');
+      btn.className = 'sigil-btn stage-btn';
+      btn.dataset.stage = String(i);
+      btn.textContent = stage.name;
+      btn.addEventListener('click', () => {
+        [...document.querySelectorAll('.stage-btn')].forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        stageMode = btn.dataset.stage;
+      });
+      container.appendChild(btn);
+    });
+  }
+
+  document.querySelectorAll('.stage-set-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.stage-set-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      activeStageSet = btn.dataset.set;
+      buildStageButtons();
+      // switching sets resets to Auto so stage numbers don't carry stale meaning
+      stageMode = 'auto';
+      [...document.querySelectorAll('.stage-btn')].forEach(b => b.classList.remove('active'));
+      document.querySelector('.stage-btn[data-stage="auto"]').classList.add('active');
+    });
+  });
+  buildStageButtons();
+
+  // ---------- Stage control ----------
+  let stageMode = 'auto'; // 'auto', a numeric index into the active set, or 'custom'
+  stageButtons.forEach(btn => { // wires the static Auto / Custom buttons
+    btn.addEventListener('click', () => {
+      [...document.querySelectorAll('.stage-btn')].forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      stageMode = btn.dataset.stage;
+    });
+  });
+
+  function lerp(a,b,t){ return a + (b-a)*t; }
+  function lerpColor(c1,c2,t){
+    return [ lerp(c1[0],c2[0],t), lerp(c1[1],c2[1],t), lerp(c1[2],c2[2],t) ];
+  }
+  function rgb(c, alpha=1){ return `rgba(${c[0]|0},${c[1]|0},${c[2]|0},${alpha})`; }
+
+  function currentPalette(){
+    if (stageMode === 'custom'){
+      stageLabel.textContent = 'Custom';
+      return CONFIG.customPalette;
+    }
+    const stages = STAGE_SETS[activeStageSet];
+    const segments = stages.length - 1;
+    let frac = 0;
+    if (stageMode === 'auto'){
+      if (inputMode === 'live'){
+        const cycleSeconds = 240; // full loop length for live sets; edit freely
+        const elapsed = (performance.now() - liveStartTime) / 1000;
+        frac = (elapsed % cycleSeconds) / cycleSeconds;
+      } else {
+        const dur = audioEl.duration || 0;
+        frac = dur > 0 ? Math.min(1, audioEl.currentTime / dur) : 0;
+      }
+    } else {
+      frac = parseInt(stageMode) / segments;
+    }
+    const scaled = frac * segments;
+    const idx = Math.min(segments-1, Math.floor(scaled));
+    const t = scaled - idx;
+    const s1 = stages[idx], s2 = stages[idx+1];
+    stageLabel.textContent = t < 0.5 ? s1.name : s2.name;
+    return {
+      bg: lerpColor(s1.bg, s2.bg, t),
+      a:  lerpColor(s1.a, s2.a, t),
+      b:  lerpColor(s1.b, s2.b, t),
+    };
+  }
+
+  // ---------- Frequency bands (one per active glyph, slow->fast) ----------
+  function bandEnergies(count){
+    const groups = new Array(count).fill(0);
+    const n = bandCount;
+    const usable = Math.floor(n * 0.85);
+    for (let i=0;i<groups.length;i++){
+      const startFrac = Math.pow(i/groups.length, 1.6);
+      const endFrac = Math.pow((i+1)/groups.length, 1.6);
+      const start = Math.floor(startFrac * usable);
+      const end = Math.max(start+1, Math.floor(endFrac * usable));
+      let sum = 0, count2 = 0;
+      for (let j=start;j<end;j++){ sum += freqData[j]; count2++; }
+      groups[i] = count2 ? (sum/count2)/255 : 0;
+    }
+    return groups;
+  }
+
+  // ---------- Beat detection ----------
+  let bassAvg = 0, bassHistory = [];
+  let beatFlash = 0;
+
+  // ---------- Particles ----------
+  const particles = [];
+  function seedParticles(){
+    particles.length = 0;
+    const count = 90;
+    for (let i=0;i<count;i++){
+      particles.push({
+        a: Math.random()*Math.PI*2,
+        r: 60 + Math.random()*400,
+        speed: (Math.random()*0.4+0.1) * (Math.random()<0.5?-1:1),
+        size: 0.6 + Math.random()*2.2,
+        wobble: Math.random()*Math.PI*2,
+      });
+    }
+  }
+  seedParticles();
+
+  // ---------- Sigil generation ----------
+  let sigilSkip = 3;
+  let sigilRotation = 0;
+
+  function drawSigil(cx, cy, radius, energy, palette, t){
+    const points = CONFIG.sigilPoints;
+    const coords = [];
+    for (let i=0;i<points;i++){
+      const ang = (i/points)*Math.PI*2 + sigilRotation;
+      coords.push([cx + Math.cos(ang)*radius, cy + Math.sin(ang)*radius]);
+    }
+    ctx.save();
+    ctx.lineWidth = 1.2;
+    ctx.strokeStyle = rgb(palette.b, 0.55 + energy*0.4);
+    ctx.shadowBlur = 14 + energy*22;
+    ctx.shadowColor = rgb(palette.b, 0.6);
+    ctx.beginPath();
+    const skip = Math.max(2, Math.round(sigilSkip));
+    for (let i=0;i<=points;i++){
+      const idx = (i*skip) % points;
+      const [x,y] = coords[idx];
+      if (i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.stroke();
+
+    // node dots
+    coords.forEach(([x,y]) => {
+      ctx.beginPath();
+      ctx.arc(x,y, 2.2 + energy*3, 0, Math.PI*2);
+      ctx.fillStyle = rgb(palette.a, 0.8);
+      ctx.fill();
+    });
+    ctx.restore();
+  }
+
+  // ---------- Sacred geometry rings ----------
+  function drawGeometryRing(cx, cy, baseR, energy, palette, layers, rot){
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(rot);
+    for (let l=0; l<layers; l++){
+      const r = baseR + l*26 + energy*40;
+      const petals = 6;
+      ctx.beginPath();
+      for (let i=0;i<petals;i++){
+        const ang = (i/petals)*Math.PI*2;
+        const px = Math.cos(ang)*r, py = Math.sin(ang)*r;
+        ctx.moveTo(0,0);
+        ctx.arc(px,py, r*0.58, 0, Math.PI*2);
+      }
+      ctx.lineWidth = 0.8;
+      ctx.strokeStyle = rgb(palette.a, 0.10 + energy*0.10);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawPlanetRing(cx, cy, radius, energies, palette, rot){
+    const glyphs = CONFIG.activeGlyphs;
+    ctx.save();
+    ctx.font = '28px serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    for (let i=0;i<glyphs.length;i++){
+      const ang = (i/glyphs.length)*Math.PI*2 + rot;
+      const e = energies[i]*sensitivity;
+      const r = radius + e*30;
+      const x = cx + Math.cos(ang)*r;
+      const y = cy + Math.sin(ang)*r;
+      ctx.save();
+      ctx.translate(x,y);
+      const scale = 0.8 + e*0.9;
+      ctx.scale(scale, scale);
+      ctx.shadowBlur = 10 + e*30;
+      ctx.shadowColor = rgb(palette.b, 0.9);
+      ctx.fillStyle = rgb(palette.b, 0.55 + e*0.45);
+      ctx.fillText(glyphs[i], 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+  }
+
+  function drawSpectrumRing(cx, cy, radius, palette){
+    const bars = 96;
+    ctx.save();
+    for (let i=0;i<bars;i++){
+      const idx = Math.floor((i/bars) * bandCount * 0.7);
+      const v = (freqData[idx]/255) * sensitivity;
+      const ang = (i/bars)*Math.PI*2;
+      const len = 6 + v*46;
+      const x1 = cx + Math.cos(ang)*radius;
+      const y1 = cy + Math.sin(ang)*radius;
+      const x2 = cx + Math.cos(ang)*(radius+len);
+      const y2 = cy + Math.sin(ang)*(radius+len);
+      ctx.beginPath();
+      ctx.moveTo(x1,y1);
+      ctx.lineTo(x2,y2);
+      ctx.lineWidth = 1.4;
+      ctx.strokeStyle = rgb(palette.a, 0.15 + v*0.55);
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  function drawParticles(cx, cy, overall, palette){
+    particles.forEach(p => {
+      p.a += p.speed * 0.004 * (0.4 + overall*1.6);
+      p.wobble += 0.01;
+      const wob = Math.sin(p.wobble) * 8;
+      const x = cx + Math.cos(p.a) * (p.r + wob);
+      const y = cy + Math.sin(p.a) * (p.r*0.75 + wob);
+      const size = p.size * (0.6 + overall*1.8);
+      ctx.beginPath();
+      ctx.arc(x,y,size,0,Math.PI*2);
+      ctx.fillStyle = rgb(palette.b, 0.15 + overall*0.35);
+      ctx.fill();
+    });
+  }
+
+  // ---------- Main render loop ----------
+  function formatTime(s){
+    if (!isFinite(s)) return '00:00';
+    const m = Math.floor(s/60), sec = Math.floor(s%60);
+    return `${String(m).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+  }
+
+  function loop(){
+    requestAnimationFrame(loop);
+    const w = window.innerWidth, h = window.innerHeight;
+    const cx = w/2, cy = h/2;
+
+    const palette = currentPalette();
+
+    // trailing fade instead of hard clear
+    ctx.fillStyle = rgb(palette.bg, 0.16);
+    ctx.fillRect(0,0,w,h);
+
+    if (!analyser){
+      timeLabel.textContent = '00:00 / 00:00';
+      return;
+    }
+
+    analyser.getByteFrequencyData(freqData);
+    const glyphCount = CONFIG.activeGlyphs.length;
+    const energies = bandEnergies(glyphCount);
+    const overall = energies.reduce((a,b)=>a+b,0)/energies.length * sensitivity;
+    const bass = (energies[0] + (energies[1]??energies[0])) / 2;
+    const trebleIdx1 = Math.max(0, glyphCount-2), trebleIdx2 = glyphCount-1;
+    const treble = (energies[trebleIdx1] + energies[trebleIdx2]) / 2;
+
+    // beat detect
+    bassHistory.push(bass);
+    if (bassHistory.length > 40) bassHistory.shift();
+    bassAvg = bassHistory.reduce((a,b)=>a+b,0)/bassHistory.length;
+    if (bass > bassAvg*1.35 + 0.05 && bass > 0.15){
+      beatFlash = 1;
+    }
+    beatFlash *= 0.90;
+
+    sigilRotation += 0.0015 + treble*0.01;
+    sigilSkip = 2 + Math.floor(treble * 6);
+
+    const minDim = Math.min(w,h);
+
+    drawParticles(cx, cy, overall, palette);
+    drawGeometryRing(cx, cy, minDim*0.10, bass, palette, 3, sigilRotation*0.3);
+    drawSpectrumRing(cx, cy, minDim*0.30, palette);
+    drawPlanetRing(cx, cy, minDim*0.22, energies, palette, -sigilRotation*0.6);
+    drawSigil(cx, cy, minDim*0.13, overall, palette, sigilRotation);
+
+    if (beatFlash > 0.03){
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(cx, cy, minDim*0.13 + beatFlash*60, 0, Math.PI*2);
+      ctx.lineWidth = 1.5;
+      ctx.strokeStyle = rgb(palette.b, beatFlash*0.6);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    if (inputMode === 'live' && micStream){
+      const elapsed = (performance.now() - liveStartTime) / 1000;
+      timeLabel.textContent = `LIVE ${formatTime(elapsed)}`;
+    } else {
+      timeLabel.textContent = `${formatTime(audioEl.currentTime)} / ${formatTime(audioEl.duration)}`;
+    }
+
+    // ---- Pixelate post-process: shrink then blow back up, no smoothing ----
+    if (pixelateOn){
+      ctx.save();
+      ctx.setTransform(1,0,0,1,0,0); // work in raw device pixels for this blit
+      pixelCtx.clearRect(0,0,pixelCanvas.width, pixelCanvas.height);
+      pixelCtx.drawImage(canvas, 0,0, canvas.width, canvas.height, 0,0, pixelCanvas.width, pixelCanvas.height);
+      ctx.imageSmoothingEnabled = false;
+      ctx.drawImage(pixelCanvas, 0,0, pixelCanvas.width, pixelCanvas.height, 0,0, canvas.width, canvas.height);
+      ctx.restore(); // back to the dpr transform for next frame's normal drawing
+    }
+  }
+  loop();
+
+  // ---------- Recording ----------
+  let recorder, chunks = [];
+  let recording = false;
+
+  recBtn.addEventListener('click', () => {
+    if (!recording){
+      const canvasStream = canvas.captureStream(30);
+      const combined = new MediaStream([
+        ...canvasStream.getVideoTracks(),
+        ...recDest.stream.getAudioTracks(),
+      ]);
+      let mime = 'video/webm;codecs=vp9,opus';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm;codecs=vp8,opus';
+      if (!MediaRecorder.isTypeSupported(mime)) mime = 'video/webm';
+      recorder = new MediaRecorder(combined, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
+      chunks = [];
+      recorder.ondataavailable = e => { if (e.data.size > 0) chunks.push(e.data); };
+      recorder.onstop = () => {
+        const blob = new Blob(chunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        dl.href = url;
+        dl.download = `great-work-seal-${Date.now()}.webm`;
+        dl.click();
+      };
+      recorder.start();
+      recording = true;
+      recBtn.textContent = 'Stop Recording';
+      recBtn.classList.add('on');
+      if (inputMode === 'file' && !playing) playBtn.click();
+    } else {
+      recorder.stop();
+      recording = false;
+      recBtn.textContent = 'Begin Recording';
+      recBtn.classList.remove('on');
+    }
+  });
+
+})();
+</script>
+</body>
+</html>
