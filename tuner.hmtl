@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monochord — Tuner</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@500;600&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0d0808;
+    --panel:#17130f;
+    --panel2:#1f1313;
+    --line:#332222;
+    --brass:#c94a4a;
+    --brass-dim:#8a3636;
+    --text:#e9e2d0;
+    --text-dim:#937a7a;
+    --good:#6ba57f;
+    --warn:#d04a4a;
+    --bad:#b25a3f;
+  }
+  *{ box-sizing:border-box; }
+  html,body{
+    margin:0; padding:0; background:var(--ink); color:var(--text);
+    font-family:'IBM Plex Sans', system-ui, sans-serif;
+    min-height:100vh;
+  }
+  body{
+    display:flex; justify-content:center;
+    padding:32px 16px 64px;
+  }
+  .app{ width:100%; max-width:480px; }
+
+  h1{
+    font-family:'Cormorant Garamond', Georgia, serif;
+    font-weight:600; font-size:28px; letter-spacing:0.02em;
+    margin:0 0 4px; text-align:center; color:var(--text);
+  }
+  .subtitle{
+    text-align:center; font-size:13px; color:var(--text-dim);
+    margin:0 0 28px; letter-spacing:0.03em;
+  }
+
+  .mic-row{
+    display:flex; justify-content:center; margin-bottom:24px;
+  }
+  button.mic{
+    font-family:'IBM Plex Sans', sans-serif;
+    background:var(--panel); color:var(--brass);
+    border:1px solid var(--brass-dim); border-radius:2px;
+    padding:10px 28px; font-size:13px; letter-spacing:0.08em;
+    text-transform:uppercase; cursor:pointer;
+  }
+  button.mic:hover{ background:var(--panel2); }
+  button.mic.on{ background:var(--brass); color:var(--ink); border-color:var(--brass); }
+  .mic-error{ text-align:center; font-size:12px; color:var(--bad); margin-top:8px; }
+
+  .dial-wrap{ display:flex; justify-content:center; margin-bottom:8px; }
+
+  .readout{ text-align:center; margin-bottom:28px; }
+  .string-label{ font-size:14px; color:var(--text-dim); letter-spacing:0.08em; text-transform:uppercase; }
+  .hz-row{ font-family:'IBM Plex Mono', monospace; font-size:13px; color:var(--text-dim); margin-top:6px; }
+  .hz-row span{ color:var(--text); }
+
+  section{
+    background:var(--panel); border:1px solid var(--line); border-radius:3px;
+    padding:16px 18px; margin-bottom:16px;
+  }
+  section h2{
+    font-family:'Cormorant Garamond', Georgia, serif; font-weight:600;
+    font-size:16px; letter-spacing:0.04em; margin:0 0 12px; color:var(--brass);
+  }
+  label{ display:block; font-size:12px; color:var(--text-dim); margin-bottom:6px; letter-spacing:0.03em; }
+
+  .ref-row{ display:flex; align-items:center; gap:12px; }
+  .ref-row input[type=range]{ flex:1; accent-color:var(--brass); }
+  .ref-row input[type=number]{
+    width:72px; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    font-family:'IBM Plex Mono', monospace; font-size:14px; padding:6px 8px; border-radius:2px;
+  }
+  .ref-presets{ display:flex; gap:6px; margin-top:10px; }
+  .ref-presets button{
+    flex:1; background:var(--panel2); border:1px solid var(--line); color:var(--text-dim);
+    font-family:'IBM Plex Mono', monospace; font-size:12px; padding:6px 4px; border-radius:2px; cursor:pointer;
+  }
+  .ref-presets button.active{ border-color:var(--brass); color:var(--brass); }
+
+  select{
+    width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif; font-size:14px; padding:8px 10px; border-radius:2px;
+  }
+
+  .strings{ display:flex; flex-wrap:wrap; gap:8px; margin-top:12px; }
+  .strings button{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    font-family:'IBM Plex Mono', monospace; font-size:13px; padding:8px 12px; border-radius:2px; cursor:pointer;
+    min-width:56px;
+  }
+  .strings button.active{ border-color:var(--brass); color:var(--ink); background:var(--brass); }
+
+  .custom-row{ display:flex; gap:8px; align-items:center; margin-bottom:8px; }
+  .custom-row select, .custom-row input{ flex:1; }
+  .custom-row input[type=number]{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    font-family:'IBM Plex Mono', monospace; font-size:13px; padding:8px; border-radius:2px;
+  }
+  .custom-row button.remove{
+    background:none; border:1px solid var(--line); color:var(--bad); border-radius:2px;
+    width:32px; height:34px; cursor:pointer; flex:none;
+  }
+  .add-btn, .save-btn, .delete-btn{
+    background:var(--panel2); border:1px solid var(--brass-dim); color:var(--brass);
+    font-size:12px; padding:8px 12px; border-radius:2px; cursor:pointer; letter-spacing:0.04em;
+  }
+  .delete-btn{ border-color:#5c3a30; color:var(--bad); }
+  .row-actions{ display:flex; gap:8px; margin-top:10px; }
+  .name-input{
+    width:100%; background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif; font-size:13px; padding:8px 10px; border-radius:2px; margin-bottom:10px;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Alchemy Universal Tuner</h1>
+  <p class="subtitle">a tuner for any reference, any instrument</p>
+
+  <div class="mic-row">
+    <button class="mic" id="micBtn">start listening</button>
+  </div>
+  <div class="mic-error" id="micError"></div>
+
+  <div class="dial-wrap">
+    <svg id="dial" viewBox="0 0 300 190" width="300" height="190"></svg>
+  </div>
+  <div class="readout">
+    <div class="string-label" id="stringLabel">—</div>
+    <div class="hz-row">detected <span id="detectedHz">—</span> Hz &nbsp;·&nbsp; target <span id="targetHz">—</span> Hz</div>
+  </div>
+
+  <section>
+    <h2>reference pitch</h2>
+    <label for="refInput">A4 frequency (Hz)</label>
+    <div class="ref-row">
+      <input type="range" id="refSlider" min="380" max="480" step="1" value="440">
+      <input type="number" id="refInput" min="380" max="480" step="0.1" value="440">
+    </div>
+    <div class="ref-presets">
+      <button data-ref="432">432</button>
+      <button data-ref="440" class="active">440</button>
+      <button data-ref="444">444</button>
+    </div>
+  </section>
+
+  <section>
+    <h2>instrument</h2>
+    <select id="instrumentSelect"></select>
+    <div class="strings" id="stringButtons"></div>
+  </section>
+
+  <section>
+    <h2>custom instrument</h2>
+    <input type="text" class="name-input" id="customName" placeholder="Instrument name">
+    <div id="customStrings"></div>
+    <div class="row-actions">
+      <button class="add-btn" id="addString">+ add string</button>
+      <button class="save-btn" id="saveInstrument">save instrument</button>
+    </div>
+    <div class="row-actions" id="deleteRow" style="display:none;">
+      <button class="delete-btn" id="deleteInstrument">delete selected instrument</button>
+    </div>
+  </section>
+</div>
+
+<script>
+// ---------- pitch detection module (pure, no DOM) ----------
+const Pitch = (function(){
+  function detect(buf, sampleRate, minFreq, maxFreq){
+    let SIZE = buf.length;
+    let rms = 0;
+    for (let i=0;i<SIZE;i++){ rms += buf[i]*buf[i]; }
+    rms = Math.sqrt(rms/SIZE);
+    if (rms < 0.008) return -1;
+
+    const thres = 0.2;
+    let r1 = 0, r2 = SIZE - 1;
+    for (let i=0; i<SIZE/2; i++){ if (Math.abs(buf[i]) < thres){ r1 = i; break; } }
+    for (let i=1; i<SIZE/2; i++){ if (Math.abs(buf[SIZE-i]) < thres){ r2 = SIZE-i; break; } }
+    const trimmed = buf.slice(r1, r2);
+    const N = trimmed.length;
+    if (N < 8) return -1;
+
+    const minLag = Math.floor(sampleRate / maxFreq);
+    const maxLag = Math.min(Math.ceil(sampleRate / minFreq), N - 1);
+    if (maxLag <= minLag) return -1;
+
+    const c = new Float64Array(maxLag + 2);
+    for (let lag = minLag; lag <= maxLag; lag++){
+      let sum = 0;
+      const lim = N - lag;
+      for (let j = 0; j < lim; j++){ sum += trimmed[j] * trimmed[j+lag]; }
+      c[lag] = sum;
+    }
+
+    let maxVal = -Infinity, maxPos = -1;
+    for (let lag = minLag; lag <= maxLag; lag++){
+      if (c[lag] > maxVal){ maxVal = c[lag]; maxPos = lag; }
+    }
+    if (maxPos <= minLag || maxPos >= maxLag) return -1;
+
+    const x1 = c[maxPos-1], x2 = c[maxPos], x3 = c[maxPos+1];
+    const a = (x1 + x3 - 2*x2) / 2;
+    const b = (x3 - x1) / 2;
+    let T0 = maxPos;
+    if (a !== 0) T0 = maxPos - b / (2*a);
+
+    const freq = sampleRate / T0;
+    if (freq < minFreq*0.5 || freq > maxFreq*2) return -1;
+    return freq;
+  }
+  return { detect };
+})();
+
+// ---------- note / frequency math (pure) ----------
+const NOTE_NAMES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+function noteFreq(noteName, octave, refA4){
+  const idx = NOTE_NAMES.indexOf(noteName);
+  const midi = (octave + 1) * 12 + idx;
+  return refA4 * Math.pow(2, (midi - 69) / 12);
+}
+function centsBetween(freq, target){
+  return 1200 * Math.log2(freq / target);
+}
+// Autocorrelation can lock onto the octave below a bright, harmonic-rich
+// string (classic case: mandolin high E). Since we already know the target
+// notes for the current instrument, check freq, freq*2 and freq/2 against
+// every known string and snap to whichever octave actually matches one.
+function correctOctave(freq, instrument, refA4){
+  const candidates = [freq, freq * 2, freq / 2];
+  let best = freq, bestDiff = Infinity;
+  instrument.strings.forEach(s => {
+    const tf = noteFreq(s.note, s.octave, refA4);
+    candidates.forEach(c => {
+      const diff = Math.abs(centsBetween(c, tf));
+      if (diff < bestDiff){ bestDiff = diff; best = c; }
+    });
+  });
+  return bestDiff < 150 ? best : freq;
+}
+
+// ---------- instrument presets (note + octave, so any reference scales correctly) ----------
+const PRESETS = {
+  guitar_standard: { label: "Guitar — standard", strings: [
+    {name:"E2", note:"E", octave:2}, {name:"A2", note:"A", octave:2},
+    {name:"D3", note:"D", octave:3}, {name:"G3", note:"G", octave:3},
+    {name:"B3", note:"B", octave:3}, {name:"E4", note:"E", octave:4}
+  ]},
+  guitar_dropd: { label: "Guitar — drop D", strings: [
+    {name:"D2", note:"D", octave:2}, {name:"A2", note:"A", octave:2},
+    {name:"D3", note:"D", octave:3}, {name:"G3", note:"G", octave:3},
+    {name:"B3", note:"B", octave:3}, {name:"E4", note:"E", octave:4}
+  ]},
+  bass_4: { label: "Bass — 4-string", strings: [
+    {name:"E1", note:"E", octave:1}, {name:"A1", note:"A", octave:1},
+    {name:"D2", note:"D", octave:2}, {name:"G2", note:"G", octave:2}
+  ]},
+  ukulele: { label: "Ukulele — standard (reentrant)", strings: [
+    {name:"G4", note:"G", octave:4}, {name:"C4", note:"C", octave:4},
+    {name:"E4", note:"E", octave:4}, {name:"A4", note:"A", octave:4}
+  ]}
+};
+
+// ---------- state ----------
+const state = {
+  refA4: 440,
+  instrumentKey: "guitar_standard",
+  customInstruments: JSON.parse(localStorage.getItem("monochord_custom") || "{}"),
+  selectedStringIdx: null,
+  audioCtx: null,
+  analyser: null,
+  stream: null,
+  running: false,
+  displayedCents: 0
+};
+
+function allInstruments(){
+  return Object.assign({}, PRESETS, state.customInstruments);
+}
+function currentInstrument(){
+  return allInstruments()[state.instrumentKey];
+}
+
+// ---------- UI: instrument select ----------
+const instrumentSelect = document.getElementById("instrumentSelect");
+function renderInstrumentOptions(){
+  instrumentSelect.innerHTML = "";
+  const all = allInstruments();
+  for (const key in all){
+    const opt = document.createElement("option");
+    opt.value = key; opt.textContent = all[key].label;
+    if (key === state.instrumentKey) opt.selected = true;
+    instrumentSelect.appendChild(opt);
+  }
+  document.getElementById("deleteRow").style.display = state.customInstruments[state.instrumentKey] ? "flex" : "none";
+}
+instrumentSelect.addEventListener("change", () => {
+  state.instrumentKey = instrumentSelect.value;
+  state.selectedStringIdx = null;
+  renderStringButtons();
+  document.getElementById("deleteRow").style.display = state.customInstruments[state.instrumentKey] ? "flex" : "none";
+});
+
+// ---------- UI: string buttons ----------
+const stringButtonsEl = document.getElementById("stringButtons");
+function renderStringButtons(){
+  stringButtonsEl.innerHTML = "";
+  const inst = currentInstrument();
+  if (!inst) return;
+  inst.strings.forEach((s, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = s.name;
+    if (state.selectedStringIdx === i) btn.classList.add("active");
+    btn.addEventListener("click", () => {
+      state.selectedStringIdx = (state.selectedStringIdx === i) ? null : i;
+      renderStringButtons();
+    });
+    stringButtonsEl.appendChild(btn);
+  });
+}
+
+// ---------- UI: reference frequency ----------
+const refSlider = document.getElementById("refSlider");
+const refInput = document.getElementById("refInput");
+const refPresets = document.querySelectorAll(".ref-presets button");
+function setRef(val){
+  state.refA4 = Math.max(380, Math.min(480, val));
+  refSlider.value = state.refA4;
+  refInput.value = state.refA4;
+  refPresets.forEach(b => b.classList.toggle("active", Math.abs(Number(b.dataset.ref) - state.refA4) < 0.01));
+}
+refSlider.addEventListener("input", () => setRef(Number(refSlider.value)));
+refInput.addEventListener("input", () => setRef(Number(refInput.value)));
+refPresets.forEach(b => b.addEventListener("click", () => setRef(Number(b.dataset.ref))));
+
+// ---------- UI: custom instrument builder ----------
+const customStringsEl = document.getElementById("customStrings");
+let customRows = [{note:"E", octave:2}];
+
+function renderCustomRows(){
+  customStringsEl.innerHTML = "";
+  customRows.forEach((row, i) => {
+    const div = document.createElement("div");
+    div.className = "custom-row";
+
+    const noteSel = document.createElement("select");
+    NOTE_NAMES.forEach(n => {
+      const o = document.createElement("option");
+      o.value = n; o.textContent = n;
+      if (n === row.note) o.selected = true;
+      noteSel.appendChild(o);
+    });
+    noteSel.addEventListener("change", () => { customRows[i].note = noteSel.value; });
+
+    const octInput = document.createElement("input");
+    octInput.type = "number"; octInput.min = "0"; octInput.max = "7"; octInput.value = row.octave;
+    octInput.addEventListener("input", () => { customRows[i].octave = Number(octInput.value); });
+
+    const removeBtn = document.createElement("button");
+    removeBtn.className = "remove"; removeBtn.textContent = "×";
+    removeBtn.addEventListener("click", () => {
+      customRows.splice(i, 1);
+      renderCustomRows();
+    });
+
+    div.appendChild(noteSel); div.appendChild(octInput); div.appendChild(removeBtn);
+    customStringsEl.appendChild(div);
+  });
+}
+renderCustomRows();
+
+document.getElementById("addString").addEventListener("click", () => {
+  customRows.push({note:"A", octave:2});
+  renderCustomRows();
+});
+
+document.getElementById("saveInstrument").addEventListener("click", () => {
+  const name = document.getElementById("customName").value.trim();
+  if (!name){ alert("Give the instrument a name first."); return; }
+  if (customRows.length === 0){ alert("Add at least one string."); return; }
+  const key = "custom_" + name.toLowerCase().replace(/[^a-z0-9]+/g, "_");
+  state.customInstruments[key] = {
+    label: name,
+    strings: customRows.map(r => ({ name: r.note + r.octave, note: r.note, octave: r.octave }))
+  };
+  localStorage.setItem("monochord_custom", JSON.stringify(state.customInstruments));
+  state.instrumentKey = key;
+  state.selectedStringIdx = null;
+  renderInstrumentOptions();
+  renderStringButtons();
+});
+
+document.getElementById("deleteInstrument").addEventListener("click", () => {
+  if (!state.customInstruments[state.instrumentKey]) return;
+  delete state.customInstruments[state.instrumentKey];
+  localStorage.setItem("monochord_custom", JSON.stringify(state.customInstruments));
+  state.instrumentKey = "guitar_standard";
+  state.selectedStringIdx = null;
+  renderInstrumentOptions();
+  renderStringButtons();
+});
+
+// ---------- dial rendering ----------
+const dialSvg = document.getElementById("dial");
+function buildDial(){
+  const cx = 150, cy = 160, r = 120;
+  let svg = "";
+  for (let c = -50; c <= 50; c += 10){
+    const angle = (c / 50) * 60 * (Math.PI/180) - Math.PI/2;
+    const x1 = cx + Math.cos(angle) * (r - 12);
+    const y1 = cy + Math.sin(angle) * (r - 12);
+    const x2 = cx + Math.cos(angle) * r;
+    const y2 = cy + Math.sin(angle) * r;
+    const major = (c === 0);
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${major ? '#c94a4a' : '#c94a4a'}" stroke-width="${major?2:1}"/>`;
+  }
+  svg += `<line id="needle" x1="${cx}" y1="${cy}" x2="${cx}" y2="${cy-r+18}" stroke="#c94a4a" stroke-width="2" stroke-linecap="round"/>`;
+  svg += `<circle cx="${cx}" cy="${cy}" r="4" fill="#c94a4a"/>`;
+  dialSvg.innerHTML = svg;
+}
+buildDial();
+
+function updateDial(cents){
+  const clamped = Math.max(-50, Math.min(50, cents));
+  const angle = (clamped / 50) * 60;
+  const needle = document.getElementById("needle");
+  if (needle) needle.setAttribute("transform", `rotate(${angle} 150 160)`);
+}
+
+// ---------- audio pipeline ----------
+const micBtn = document.getElementById("micBtn");
+const micError = document.getElementById("micError");
+let rafId = null;
+let lastRun = 0;
+
+async function startMic(){
+  try{
+    state.stream = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation:false, noiseSuppression:false, autoGainControl:false } });
+    state.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const source = state.audioCtx.createMediaStreamSource(state.stream);
+    state.analyser = state.audioCtx.createAnalyser();
+    state.analyser.fftSize = 4096;
+    source.connect(state.analyser);
+    state.running = true;
+    micBtn.textContent = "stop listening";
+    micBtn.classList.add("on");
+    micError.textContent = "";
+    loop();
+  } catch(err){
+    micError.textContent = "Microphone access denied or unavailable.";
+  }
+}
+function stopMic(){
+  state.running = false;
+  if (rafId) cancelAnimationFrame(rafId);
+  if (state.stream) state.stream.getTracks().forEach(t => t.stop());
+  if (state.audioCtx) state.audioCtx.close();
+  micBtn.textContent = "start listening";
+  micBtn.classList.remove("on");
+  document.getElementById("stringLabel").textContent = "—";
+  document.getElementById("detectedHz").textContent = "—";
+  document.getElementById("targetHz").textContent = "—";
+  updateDial(0);
+}
+micBtn.addEventListener("click", () => { state.running ? stopMic() : startMic(); });
+
+const buf = new Float32Array(4096);
+function loop(timestamp){
+  if (!state.running) return;
+  rafId = requestAnimationFrame(loop);
+  if (timestamp - lastRun < 80) return;
+  lastRun = timestamp;
+
+  state.analyser.getFloatTimeDomainData(buf);
+
+  let minFreq = 25, maxFreq = 1500;
+  const inst = currentInstrument();
+  if (inst && state.selectedStringIdx !== null){
+    const s = inst.strings[state.selectedStringIdx];
+    const tf = noteFreq(s.note, s.octave, state.refA4);
+    // Narrow the search band around the locked string (roughly a minor
+    // third either side) so a bright/high string has less room to be
+    // mistaken for a neighbouring octave.
+    minFreq = tf * 0.82;
+    maxFreq = tf * 1.22;
+  }
+
+  let freq = Pitch.detect(buf, state.audioCtx.sampleRate, minFreq, maxFreq);
+  if (freq > 0){
+    if (inst) freq = correctOctave(freq, inst, state.refA4);
+    processFrequency(freq);
+  }
+}
+
+function processFrequency(freq){
+  const inst = currentInstrument();
+  if (!inst || inst.strings.length === 0) return;
+
+  let target, label, idx;
+  if (state.selectedStringIdx !== null){
+    idx = state.selectedStringIdx;
+    target = inst.strings[idx];
+  } else {
+    let best = 0, bestDiff = Infinity;
+    inst.strings.forEach((s, i) => {
+      const tf = noteFreq(s.note, s.octave, state.refA4);
+      const diff = Math.abs(centsBetween(freq, tf));
+      if (diff < bestDiff){ bestDiff = diff; best = i; }
+    });
+    idx = best;
+    target = inst.strings[idx];
+  }
+  label = target.name;
+  const targetFreq = noteFreq(target.note, target.octave, state.refA4);
+  const cents = centsBetween(freq, targetFreq);
+
+  state.displayedCents = state.displayedCents * 0.6 + cents * 0.4;
+
+  document.getElementById("stringLabel").textContent = label;
+  document.getElementById("detectedHz").textContent = freq.toFixed(1);
+  document.getElementById("targetHz").textContent = targetFreq.toFixed(1);
+  updateDial(state.displayedCents);
+
+  const needle = document.getElementById("needle");
+  if (needle){
+    const abs = Math.abs(state.displayedCents);
+    needle.setAttribute("stroke", abs < 3 ? "#6ba57f" : abs < 15 ? "#c94a4a" : "#c94a4a");
+  }
+}
+
+// ---------- init ----------
+renderInstrumentOptions();
+renderStringButtons();
+setRef(440);
+</script>
+</body>
+</html>
