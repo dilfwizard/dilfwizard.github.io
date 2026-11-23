@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Chaldean Numerology</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=JetBrains+Mono:wght@400;500&family=VT323&family=Pirata+One&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#e8e2d0;--panel:rgba(255,250,235,.55);--ink:#241a10;--muted:#5e5340;--red:#a8341c;--copper:#8a4a12;--sol:#8a6a00;--luna:#4a5560;
+  --line:rgba(168,52,28,.5);--on-red:#f4eedc;--glow:none;--wash:none;color-scheme:light;
+  --display:"Pirata One","UnifrakturCook",Georgia,serif;--body:"Cormorant Garamond",Georgia,"Times New Roman",serif;--term:"VT323","Courier New",monospace;--mono:"JetBrains Mono",ui-monospace,Menlo,monospace}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0a0906;--panel:rgba(8,7,5,.72);--ink:#e8e2d0;--muted:#a79f8b;--red:#d9583a;--copper:#b5651d;--sol:#c9a227;--luna:#aab3b8;
+  --line:rgba(201,39,39,.4);--on-red:#0a0906;--glow:0 0 24px rgba(201,39,39,.5),0 0 2px rgba(201,39,39,.8);--wash:radial-gradient(ellipse at 50% 0%,rgba(26,15,46,.9) 0%,transparent 65%);color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0a0906;--panel:rgba(8,7,5,.72);--ink:#e8e2d0;--muted:#a79f8b;--red:#d9583a;--copper:#b5651d;--sol:#c9a227;--luna:#aab3b8;
+  --line:rgba(201,39,39,.4);--on-red:#0a0906;--glow:0 0 24px rgba(201,39,39,.5),0 0 2px rgba(201,39,39,.8);--wash:radial-gradient(ellipse at 50% 0%,rgba(26,15,46,.9) 0%,transparent 65%);color-scheme:dark}
+*{box-sizing:border-box}
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--wash),var(--bg);background-repeat:no-repeat;color:var(--ink);font-family:var(--body);font-size:19px;line-height:1.45}
+main{max-width:740px;margin:0 auto;padding:30px 20px 60px}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(2.6rem,9vw,4.2rem);line-height:1.05;margin:0;color:var(--red);text-align:center;letter-spacing:.05em;text-shadow:var(--glow)}
+.glyphs{font-family:var(--term);font-size:1.6rem;color:var(--copper);text-align:center;letter-spacing:.5em;margin:4px 0 0;padding-left:.5em}
+.sub{text-align:center;font-style:italic;color:var(--muted);margin:8px auto 24px;max-width:46ch;font-size:1.1rem}
+.stage{position:relative;background:#0a0906;border:2px solid var(--red);box-shadow:0 0 0 1px #050403,0 0 18px rgba(201,39,39,.25) inset;padding:10px;margin-bottom:6px;overflow:hidden}
+.stage::before{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:repeating-linear-gradient(to bottom,rgba(255,255,255,.05) 0 1px,transparent 1px 3px)}
+.stage::after{content:"";position:absolute;inset:0;z-index:2;pointer-events:none;background:radial-gradient(ellipse at center,transparent 55%,rgba(0,0,0,.55) 100%)}
+canvas{display:block;width:100%;height:260px}
+.cap{font-family:var(--mono);font-size:.7rem;color:var(--muted);margin:6px 2px 22px}
+fieldset{background:var(--panel);border:1px solid var(--line);margin:0 0 18px;padding:14px 16px 14px;min-width:0}
+legend{font-family:var(--term);font-size:1.3rem;letter-spacing:.12em;text-transform:uppercase;color:var(--red);padding:0 8px}
+label{display:block;font-style:italic;color:var(--muted);margin-bottom:4px}
+input[type=text],input[type=date]{width:100%;font-family:var(--mono);font-size:1rem;color:var(--ink);background:transparent;border:1px solid var(--line);border-radius:0;padding:9px 10px;margin-bottom:12px}
+input[type=date]{color-scheme:inherit}
+.hint{font-style:italic;color:var(--muted);margin:2px 0 0;font-size:1.02rem}
+.words{display:flex;flex-wrap:wrap;gap:14px 22px}
+.word{display:flex;align-items:flex-end;gap:5px;flex-wrap:wrap}
+.tile{display:flex;flex-direction:column;align-items:center;min-width:34px;border:1px solid var(--luna);padding:2px 4px 3px}
+.tile.v{border-color:var(--sol)}
+.tile b{font-family:var(--term);font-weight:400;font-size:1.5rem;line-height:1.1}
+.tile i{font-family:var(--mono);font-style:normal;font-size:.8rem}
+.tile.v i{color:var(--sol)}.tile:not(.v) i{color:var(--luna)}
+.wt{font-family:var(--term);font-size:1.4rem;color:var(--red);padding-bottom:2px}
+.empty{font-style:italic;color:var(--muted)}
+.cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(128px,1fr));gap:10px}
+.card{appearance:none;text-align:center;background:rgba(201,162,39,.06);color:var(--ink);border:1px solid var(--line);border-radius:2px;padding:10px 6px;cursor:pointer;font:inherit;transition:all .2s ease}
+.card:hover{border-color:var(--red);background:rgba(201,162,39,.16)}
+.card[aria-pressed="true"]{background:var(--red);color:var(--on-red);border-color:var(--red)}
+.card .k{display:block;font-family:var(--term);font-size:1.15rem;letter-spacing:.06em;line-height:1.1}
+.card .n{display:block;font-family:var(--display);font-size:2.3rem;line-height:1.1;margin:4px 0 2px}
+.card .p{display:block;font-family:var(--mono);font-size:.72rem}
+.reading h3{font-family:var(--display);font-weight:400;font-size:2.1rem;line-height:1.1;margin:0 0 4px;color:var(--red);text-shadow:var(--glow)}
+.reading .meta{font-family:var(--term);font-size:1.3rem;letter-spacing:.06em;margin:0 0 8px}
+.reading p{margin:0 0 8px}
+.sec{border-top:1px solid var(--line);padding-top:8px;margin-top:10px}
+.tone{font-family:var(--term);font-size:1.05rem;letter-spacing:.08em;border:1px solid var(--line);padding:0 8px;margin-left:10px;vertical-align:2px}.tone.f{color:var(--sol)}.tone.w{color:var(--red)}.tone.m{color:var(--copper)}.tone.n{color:var(--muted)}
+.sec b{font-family:var(--term);font-weight:400;font-size:1.2rem;letter-spacing:.1em;text-transform:uppercase;color:var(--red);display:block}
+details{background:var(--panel);border:1px solid var(--line);padding:10px 16px;margin-bottom:18px}
+summary{font-family:var(--term);font-size:1.3rem;letter-spacing:.12em;text-transform:uppercase;color:var(--red);cursor:pointer}
+table{border-collapse:collapse;margin-top:10px;font-family:var(--mono);font-size:.85rem;width:100%}
+td,th{border-top:1px solid var(--line);padding:5px 6px;text-align:left}
+th{font-family:var(--term);font-weight:400;font-size:1.2rem;color:var(--sol);width:3rem}
+.note{border-left:2px solid var(--red);padding:2px 0 2px 14px;color:var(--muted);font-style:italic;margin-top:24px}
+:focus-visible{outline:2px solid var(--red);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>Chaldean Numerology</h1>
+<p class="glyphs" aria-hidden="true">🜂 🜃 🜁 🜄</p>
+<p class="sub">A window into the genre of your destiny through the magick of numbers.</p>
+
+<div class="stage"><canvas id="cv" role="img" aria-label="Seal of the selected number"></canvas></div>
+<p class="cap">The seal's points follow the root of the selected number. A circle marks 1 and a vesica marks 2.</p>
+
+<fieldset>
+  <legend>The Name</legend>
+  <label for="name">Full name</label>
+  <input type="text" id="name" autocomplete="off" placeholder="Name as given at birth">
+  <label for="dob">Date of birth (optional)</label>
+  <input type="date" id="dob">
+  <p class="hint">Y counts as a consonant. Accents are stripped, and anything that isn't a letter is ignored.</p>
+</fieldset>
+
+<fieldset>
+  <legend>The Letters</legend>
+  <div class="words" id="tiles" aria-live="polite"></div>
+  <p class="hint">Gold tiles are vowels and silver tiles are consonants.</p>
+</fieldset>
+
+<fieldset>
+  <legend>The Numbers</legend>
+  <div class="cards" id="cards" role="group" aria-label="Choose a number to read"></div>
+  <p class="hint">A compound number shows first, then the single digit it reduces to. Totals above 52 are reduced again. Choose Birth to also read the month, year, period and own days of your birth date.</p>
+</fieldset>
+
+<fieldset>
+  <legend>The Reading</legend>
+  <div class="reading" id="reading" aria-live="polite"></div>
+</fieldset>
+
+<details>
+  <summary>The Chaldean alphabet</summary>
+  <table id="ref"></table>
+  <p class="hint">Nine is sacred and is never given to a letter, though it can appear as a total.</p>
+</details>
+
+<p class="note">The above readings follow Cheiro’s Book of Numbers (1926), paraphrased. This tool totals every letter of the name, though Cheiro’s own worked examples sometimes reduce each word to a single digit first. Use it as a lens for reflection.</p>
+</main>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const V={A:1,I:1,J:1,Q:1,Y:1,B:2,K:2,R:2,C:3,G:3,L:3,S:3,D:4,M:4,T:4,E:5,H:5,N:5,X:5,U:6,V:6,W:6,O:7,Z:7,F:8,P:8};
+const VOW='AEIOU';
+const ROOT={
+ 1:{g:'☉',p:'Sun',w:'Creative, inventive, individual, ambitious',t:'Creative and inventive, with strong individuality and definite views. Ambitious and averse to restraint, such people rise, want to head whatever they do, and keep the respect of those under them.',k:'Linked with 4 (Uranus). Harmonises with 2, 4 and 7.',s:'Obstinate and determined to a fault.'},
+ 2:{g:'☽',p:'Moon',w:'Gentle, imaginative, artistic, romantic',t:'Gentle, imaginative, artistic and romantic. Inventive like the 1s but less forceful, more at home on the mental plane than the physical, and seldom as strong in body.',k:'Linked with 7 (Neptune). Harmonises with 1 and 7.',s:'Restlessness, broken continuity of plans, low self-confidence, oversensitivity, melancholy in unhappy surroundings.'},
+ 3:{g:'♃',p:'Jupiter',w:'Ambition, authority, order, discipline',t:'Ambitious and never content in a subordinate place. Loves order and discipline, carries out commands well, obeys readily and expects obedience. Often rises to the top, and is conscientious in posts of trust.',k:'Sympathetic with 6 and 9 (the 3-6-9 line).',s:'Dictatorial, pushes its own ideas and makes enemies. Proud, dislikes obligation, chafes at restraint.'},
+ 4:{g:'♅',p:'Uranus',w:'The contrarian, rebel and reformer',t:'Sees everything from the opposite angle and takes the other side in an argument. Rebels against rules, is drawn to reform, and is unconventional. Makes few friends but is loyal, backs the underdog, and cares little for wealth.',k:'Linked with 1. Drawn to 1, 2, 7 and 8.',s:'Secret enemies, little worldly success, highly strung, lonely and melancholy unless successful. Cheiro warns against joining 4 with 8.'},
+ 5:{g:'☿',p:'Mercury',w:'Versatile, quick, speculative, restless',t:'Versatile and mercurial. Makes friends easily, thinks and decides quickly, craves excitement and hates plodding work. Quick at money-making ideas and speculation, and springs back from blows like quicksilver.',k:'Gets on with almost every number.',s:'Burns out nervous strength. Irritable and quick-tempered under strain.'},
+ 6:{g:'♀',p:'Venus',w:'Magnetic, loving, artistic, loyal',t:'Highly magnetic and loved by those around. Determined, and devoted when deeply attached. Its love is more maternal than sensual, and it loves beauty, music, art and hospitality.',k:'Sympathetic with 3 and 9. Makes more friends than any number except 5.',s:'Obstinate and unyielding. Cannot bear discord or jealousy, and is fierce when angered.'},
+ 7:{g:'♆',p:'Neptune',w:'Independent, original, mystical, restless',t:'Independent and original, with marked individuality. Loves change, travel and far-off lands, and has a philosophical outlook. Has intuition, vivid dreams, a leaning to the occult and a quieting magnetism, and may form a religion of its own.',k:'Linked with 2. Harmonises with 2, and with 1 and 4 as secondary numbers.',s:'Good plans that only work if carried through. Restless, and careless of material things.'},
+ 8:{g:'♄',p:'Saturn',w:'Fate, justice, depth, loneliness',t:'Deep, intense and strongly individual, often cast as the instrument of fate. Seems cold but warms to the oppressed. Two worlds meet in it: one side is upheaval and revolution, the other philosophy, occult study and devotion.',k:'The symbol of human justice. Cheiro advises 4s and 8s to seek a 1, 3, 5 or 6 in the name.',s:'Misunderstood and lonely. Great success or great failure, with sorrow, loss and humiliation. Cheiro warns against joining 8 with 4.'},
+ 9:{g:'♂',p:'Mars',w:'Courage, force, leadership, finality',t:'A fighter. The early years are hard, then grit and will win through. Hasty, impulsive and independent, with great courage, a gift for organising, and a need for full control. The last of the series and the number of physical force.',k:'Sympathetic with 3 and 6. Cheiro sees 4 and 8 as antagonistic to it.',s:'Foolhardy and prone to accidents from fire and explosions. Quarrels, enemies, strife at home, and resentment of criticism.'}};
+/* Compounds 10 to 52 after Cheiro's Book of Numbers. [symbolic title or null, tone f/m/w/n, reading] */
+const COMP={
+ 10:['The Wheel of Fortune','f','Honour, faith and self-confidence, with a life of rise and fall. The name becomes known for good or ill, and plans tend to be carried out.'],
+ 11:['The Clenched Hand, the Lion Muzzled','w','Ominous. Warns of hidden dangers, trials and treachery from others, and of great difficulties to overcome.'],
+ 12:['The Sacrifice, the Victim','w','Suffering and anxiety of mind, and often being sacrificed to the plans or intrigues of others.'],
+ 13:['Death, the Skeleton with the Scythe','m','Change of plans and place, and not as unfortunate as its reputation. Tradition says whoever understands 13 gains power and dominion. It also means upheaval and destruction, and power that wrecks itself if misused.'],
+ 14:[null,'m','Movement, combinations of people and things, and danger from tempest, water, air and fire. Good for money, speculation and business change, but always risky, usually through others’ foolhardiness. Act with caution.'],
+ 15:[null,'m','Magic and mystery, though seldom the higher occultism. Will use every art to reach its ends, with eloquence, music and art, a dramatic personality and strong magnetism. Powerful with a good single number, but with a 4 or 8 it may turn to black magic. Fortunate for gaining money, gifts and favours.'],
+ 16:['The Shattered Citadel, the Lightning-Struck Tower','w','A strange fatality, with danger of accidents and defeat of plans. A warning to note and, where possible, avert.'],
+ 17:['The Star of the Magi','f','Highly spiritual: the eight-pointed Star of Venus, peace and love. Rises above trials in spirit, and is a number of immortality whose name lives after it. Fortunate unless joined with 4s and 8s.'],
+ 18:[null,'w','Materialism warring on the spirit (the image is a bleeding moon, a wolf, a dog and a crab). Bitter quarrels even within families, war and upheaval, and sometimes gain through war. Warns of treachery, deception and danger from storms, water, fire and explosions.'],
+ 19:['The Prince of Heaven, the Sun','f','Fortunate and favourable. Promises happiness, success, esteem and honour, and success in plans.'],
+ 20:['The Awakening, the Judgment','m','New purpose, new plans and a call to action for a great cause or duty. It is not a material number, so worldly success is doubtful. Delays and hindrances are overcome only by developing the spiritual side.'],
+ 21:['The Crown of the Magi, the Universe','f','Advancement, honours, elevation and general success. Victory after a long fight, since the crown is won only through initiation and tests of determination.'],
+ 22:['The Good Man Blinded','w','A good man with a knapsack full of errors, undefended against a tiger. A warning of illusion and delusion, a fool’s paradise, and false judgment through others’ influence.'],
+ 23:['The Royal Star of the Lion','f','A promise of success, help from superiors and protection from those in high places. Most fortunate.'],
+ 24:[null,'f','Fortunate. Brings the help and association of people of rank and position, and gain through love and the opposite sex.'],
+ 25:[null,'f','Strength gained through experience, and benefit from observing people and things. Success comes through strife and trials earlier in life, so it is not exactly lucky, but it is favourable.'],
+ 26:[null,'w','Full of grave warnings. Disasters through association with others, and ruin by bad speculation, partnerships, unions and bad advice.'],
+ 27:['The Sceptre','f','Authority, power and command. Reward comes from the productive intellect and creative faculties, which have sown good seeds. Carry out your own ideas and plans.'],
+ 28:[null,'w','Full of contradictions. Great promise and possibility that may be taken away unless the future is provided for. Loss through trusting others, rivalry in trade, danger through law, and having to begin again and again.'],
+ 29:[null,'w','Uncertainty, treachery and deception. Trials, unexpected dangers, unreliable friends, and grief caused by the opposite sex.'],
+ 30:[null,'n','Thoughtful deduction, retrospection and mental superiority. It belongs to the mental plane, so material things may be set aside by choice. Neither fortunate nor unfortunate: powerful or indifferent according to will.'],
+ 31:[null,'n','Like 30 but more self-contained, lonely and isolated. Not fortunate from a worldly or material standpoint.'],
+ 32:['The Paths of Wisdom','f','A magical power like the single 5 and the compounds 14 and 23. Linked with combinations of people or nations. Fortunate if you hold to your own judgment, otherwise plans are wrecked by the stubbornness and stupidity of others.'],
+ 37:[null,'f','Has a distinct potency of its own. Good and fortunate friendships in love, and good for partnerships of all kinds.'],
+ 43:[null,'w','Unfortunate. Signs of revolution, upheaval, strife, failure and prevention.'],
+ 51:[null,'m','Has a powerful potency of its own: the warrior nature. Promises sudden advancement, especially in military or naval life and for leaders in any cause. It also threatens enemies, danger and the likelihood of assassination.']};
+/* Cheiro gives these the same reading as another number. */
+const ALIAS={33:24,34:25,35:26,36:27,38:29,39:30,40:31,41:32,42:24,44:26,45:27,46:37,47:29,48:30,49:31,50:32,52:43};
+const TONE={f:['Favourable','f'],m:['Mixed','m'],w:['Warning','w'],n:['Neutral','n']};
+/* Cheiro's zodiac periods (start dates, sorted). nums = the period's number(s); pos = positive (physical) or negative (mental). */
+const SIGNS=[
+ ['Aquarius',1,21,[8],'Saturn',0,'House of Saturn (negative)'],['Pisces',2,19,[3],'Jupiter',0,null],
+ ['Aries',3,21,[9],'Mars',1,'House of Mars (positive)'],['Taurus',4,20,[6],'Venus',1,null],
+ ['Gemini',5,21,[5],'Mercury',1,null],['Cancer',6,21,[2,7],'the Moon',1,'House of the Moon'],
+ ['Leo',7,21,[1,4],'the Sun',1,'House of the Sun'],['Virgo',8,21,[5],'Mercury',0,null],
+ ['Libra',9,21,[6],'Venus',0,null],['Scorpio',10,21,[9],'Mars',0,'House of Mars (negative)'],
+ ['Sagittarius',11,21,[3],'Jupiter',1,null],['Capricorn',12,21,[8],'Saturn',1,'House of Saturn (positive)']];
+/* Each root's kin numbers, lucky weekdays, colours and stones, after Cheiro. */
+const OWN={
+ 1:{kin:[2,4,7],days:'Sunday and Monday',col:'Gold, yellow and bronze to golden brown',st:'Topaz, amber, yellow diamond'},
+ 2:{kin:[1,4,7],days:'Sunday, Monday and Friday',col:'Greens, cream and white. Avoid black, purple and dark red',st:'Pearls, moonstones, pale green stones, jade'},
+ 3:{kin:[6,9],days:'Thursday (chief), Friday and Tuesday',col:'Mauve, violet and purple, with blues, crimson and rose as secondary',st:'Amethyst'},
+ 4:{kin:[1,2,7],days:'Saturday, Sunday and Monday',col:'Half-shades and “electric” colours: electric blues and greys',st:'Sapphire, light or dark'},
+ 5:{kin:[],days:'Wednesday and Friday',col:'Light greys, white and glistening materials',st:'Diamond, with platinum or silver'},
+ 6:{kin:[3,9],days:'Tuesday, Thursday and Friday',col:'Blues and rose or pink. Avoid black and dark purple',st:'Turquoise, emerald'},
+ 7:{kin:[1,2,4],days:'Sunday and Monday',col:'Pale greens, white and yellow. Avoid heavy dark colours',st:'Moonstone, cat’s-eye, pearl, moss agate'},
+ 8:{kin:[4],days:'Saturday, Sunday and Monday',col:'Dark grey, black, dark blue and purple',st:'Amethyst, dark sapphire, black pearl, black diamond'},
+ 9:{kin:[3,6],days:'Tuesday (chief), Thursday and Friday',col:'Crimson and reds, rose and pink',st:'Ruby, garnet, bloodstone'}};
+let DOB=null;
+const root9=n=>{while(n>9)n=ds(n);return n};
+const ord=n=>n+(n%10===1&&n!==11?'st':n%10===2&&n!==12?'nd':n%10===3&&n!==13?'rd':'th');
+const daysOf=rs=>{const a=[];for(let d=1;d<=31;d++)if(rs.includes(root9(d)))a.push(d);return a};
+function dateSections(r){
+  if(!DOB)return '';
+  const {y,m,d}=DOB,key=m*100+d;
+  let i=SIGNS.length-1;
+  for(let k=0;k<SIGNS.length;k++)if(SIGNS[k][1]*100+SIGNS[k][2]<=key)i=k;
+  const sg=SIGNS[i],next=SIGNS[(i+1)%SIGNS.length],prev=SIGNS[(i+SIGNS.length-1)%SIGNS.length];
+  const t=Date.UTC(y,m-1,d),at=(yy,mm,dd)=>Date.UTC(yy,mm-1,dd);
+  let sy=y;if(sg[1]*100+sg[2]>key)sy=y-1;
+  const since=Math.round((t-at(sy,sg[1],sg[2]))/864e5);
+  let ny=sy;if(next[1]*100+next[2]<=sg[1]*100+sg[2])ny=sy+1;
+  const until=Math.round((at(ny,next[1],next[2])-t)/864e5);
+  const nums=sg[3],ns=nums.join('·');
+  const strong=nums.includes(r.root)||(r.root===1&&sg[0]==='Aries')||(r.root===4&&sg[0]==='Cancer');
+  const ys=ds(y),yc=chal(ys),yo=ROOT[yc.root];
+  const ycomp=yc.comp&&COMP[ALIAS[yc.comp]||yc.comp];
+  let h='';
+  h+='<div class="sec"><b>Month · general matters</b><p>Period number '+ns+'. '+nums.map(n=>ROOT[n].g+' '+ROOT[n].p+': '+ROOT[n].w).join('. ')+'.</p><p class="hint">Cheiro reads the month number for general matters, and keeps it apart from the day number.</p></div>';
+  h+='<div class="sec"><b>Year · current of destiny</b><p>'+y+' → '+ys+(yc.comp?' → '+yc.root:'')+' · '+yo.g+' '+yo.p+': '+yo.w+'.'+(ycomp&&ycomp[0]?' Compound '+yc.comp+', '+ycomp[0]+'.':'')+'</p><p>Important year: <em>'+(y+ys)+'</em> (the year plus its own total).</p><p class="hint">Cheiro reads the year as the wider current of events. Day, month and year are never added together.</p></div>';
+  h+='<div class="sec"><b>Period · '+sg[0]+'</b><p>'+(sg[6]?sg[6]+'. ':'')+'The period of '+ns+', ruled by '+sg[4]+' in its '+(sg[5]?'positive aspect, the more physical and forceful':'negative aspect, the more mental')+'.</p><p>'+(strong?'Your day number '+r.root+' is at home in this period, so its qualities show more strongly.':'Your day number '+r.root+' is not this period’s own number, so the two run side by side.')+'</p>';
+  if(since<7)h+='<p>You were born on the cusp of '+prev[0]+' and '+sg[0]+'. The month number is less strong and shares the qualities of both.</p>';
+  else if(until<=7)h+='<p>You were born on the cusp of '+sg[0]+' and '+next[0]+'. The month number is less strong and shares the qualities of both.</p>';
+  h+='</div>';
+  const o=OWN[r.root],own=daysOf([r.root]),kin=daysOf(o.kin);
+  h+='<div class="sec"><b>Own days · number '+r.root+'</b><p>Own dates of the month: '+own.map(ord).join(', ')+'.'+(o.kin.length?' Kin dates (numbers '+o.kin.join(', ')+'): '+kin.map(ord).join(', ')+'.':'')+'</p><p>Lucky weekdays: '+o.days+'.</p><p>Colours: '+o.col+'. Stones: '+o.st+'.</p></div>';
+  return h;
+}
+const LABELS={name:'Name',soul:'Soul · vowels',outer:'Outer · consonants',birth:'Birth · day'};
+let R={},sel='name';
+
+const ds=n=>String(n).split('').reduce((a,d)=>a+ +d,0);
+function chal(total){
+  if(!total)return null;
+  let c=total;while(c>52)c=ds(c);
+  let r=c;while(r>9)r=ds(r);
+  return{total,comp:c>=10?c:null,root:r};
+}
+function letters(str){return str.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().split(/\s+/).map(w=>w.replace(/[^A-Z]/g,'')).filter(Boolean)}
+
+function calc(){
+  const words=letters($('name').value);
+  let all=0,v=0,c=0;
+  words.forEach(w=>[...w].forEach(ch=>{const n=V[ch];all+=n;VOW.includes(ch)?v+=n:c+=n}));
+  const dob=$('dob').value;let day=0;DOB=null;
+  if(dob){const p=dob.split('-').map(Number);day=p[2];if(p[0]>=1000)DOB={y:p[0],m:p[1],d:p[2]}}
+  R={name:chal(all),soul:chal(v),outer:chal(c),birth:chal(day)};
+  renderTiles(words);renderCards();renderReading();
+}
+function renderTiles(words){
+  const t=$('tiles');
+  if(!words.length){t.innerHTML='<span class="empty">Enter a name to see its letters weighed.</span>';return}
+  t.innerHTML=words.map(w=>{
+    const tot=[...w].reduce((a,ch)=>a+V[ch],0);
+    return '<div class="word">'+[...w].map(ch=>'<span class="tile'+(VOW.includes(ch)?' v':'')+'"><b>'+ch+'</b><i>'+V[ch]+'</i></span>').join('')+'<span class="wt">= '+tot+'</span></div>';
+  }).join('');
+}
+function renderCards(){
+  $('cards').innerHTML=Object.keys(LABELS).map(k=>{
+    const r=R[k];
+    const n=r?(r.comp?r.comp+' → '+r.root:r.root):'·';
+    const p=r?ROOT[r.root].g+' '+ROOT[r.root].p:'—';
+    return '<button class="card" data-k="'+k+'" aria-pressed="'+(k===sel)+'"><span class="k">'+LABELS[k]+'</span><span class="n">'+n+'</span><span class="p">'+p+'</span></button>';
+  }).join('');
+  document.querySelectorAll('.card').forEach(b=>b.addEventListener('click',()=>{sel=b.dataset.k;renderCards();renderReading()}));
+}
+function renderReading(){
+  const r=R[sel],el=$('reading');
+  if(!r){el.innerHTML='<p class="empty">'+(sel==='birth'?'Enter a date of birth to read this number.':'Enter a name to read this number.')+'</p>';return}
+  const o=ROOT[r.root];
+  let h='<h3>'+(r.comp?r.comp+' → '+r.root:r.root)+'</h3><p class="meta">'+LABELS[sel]+' · total '+r.total+' · '+o.g+' '+o.p+'</p>';
+  if(r.comp){
+    const base=ALIAS[r.comp]||r.comp,e=COMP[base],tn=TONE[e[1]];
+    h+='<div class="sec"><b>Compound '+r.comp+(e[0]?' · '+e[0]:'')+'<span class="tone '+tn[1]+'">'+tn[0]+'</span></b>';
+    if(ALIAS[r.comp])h+='<p><em>Cheiro gives '+r.comp+' the same reading as '+base+'.</em></p>';
+    h+='<p>'+e[2]+'</p><p class="hint">The compound is read as the hidden influence behind the scenes.</p></div>';
+  }
+  h+='<div class="sec"><b>Root '+r.root+' · '+o.p+'</b><p><em>'+o.w+'.</em></p><p>'+o.t+'</p><p class="hint">The root is read as how the name or person appears to the world.</p></div>';
+  h+='<div class="sec"><b>Kin</b><p>'+o.k+'</p></div>';
+  h+='<div class="sec"><b>Cautions</b><p>'+o.s+'</p></div>';
+  if(sel==='birth')h+=dateSections(r);
+  el.innerHTML=h;
+}
+$('name').addEventListener('input',calc);
+$('dob').addEventListener('input',calc);
+$('ref').innerHTML=[1,2,3,4,5,6,7,8].map(n=>'<tr><th>'+n+'</th><td>'+Object.keys(V).filter(k=>V[k]===n).join(' ')+'</td></tr>').join('');
+
+/* Seal: points follow the root of the selected number. */
+const cv=$('cv'),g=cv.getContext('2d');
+const reduce=matchMedia('(prefers-reduced-motion:reduce)').matches;
+function frame(ts){
+  const dpr=window.devicePixelRatio||1,w=cv.clientWidth,h=cv.clientHeight;
+  if(cv.width!==Math.round(w*dpr)){cv.width=Math.round(w*dpr);cv.height=Math.round(h*dpr)}
+  g.setTransform(dpr,0,0,dpr,0,0);g.clearRect(0,0,w,h);
+  const r0=R[sel],root=r0?r0.root:7,cx=w/2,cy=h/2,rad=h*0.42,rot=reduce?0:ts/1000*0.06;
+  g.strokeStyle='rgba(181,101,29,.55)';g.lineWidth=1;
+  [1,.9].forEach(f=>{g.beginPath();g.arc(cx,cy,rad*f,0,7);g.stroke()});
+  g.strokeStyle='#c9a227';g.lineWidth=1.4;g.shadowColor='#c9a227';g.shadowBlur=8;
+  if(root===1){g.beginPath();g.arc(cx,cy,rad*.34,0,7);g.stroke()}
+  else if(root===2){[-1,1].forEach(s=>{g.beginPath();g.arc(cx+s*rad*.2,cy,rad*.4,0,7);g.stroke()})}
+  else{
+    const k=Math.max(1,Math.floor((root-1)/2)),gcd=(a,b)=>b?gcd(b,a%b):a,n=gcd(root,k),steps=root/n;
+    g.beginPath();
+    for(let s0=0;s0<n;s0++)for(let i=0;i<=steps;i++){const a=rot-Math.PI/2+((s0+i*k)%root)*2*Math.PI/root,x=cx+Math.cos(a)*rad*.9,y=cy+Math.sin(a)*rad*.9;i?g.lineTo(x,y):g.moveTo(x,y)}
+    g.stroke();
+  }
+  g.shadowBlur=0;
+  g.fillStyle='#d9583a';g.textAlign='center';g.textBaseline='middle';g.shadowColor='rgba(201,39,39,.8)';g.shadowBlur=14;
+  g.font='56px "Pirata One", Georgia, serif';
+  g.fillText(r0?(r0.comp||r0.root):'·',cx,cy+2);
+  g.shadowBlur=0;
+  requestAnimationFrame(frame);
+}
+calc();requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
