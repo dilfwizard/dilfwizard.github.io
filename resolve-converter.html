@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Resolve Converter</title>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
+<style>
+  :root{ --bg:#0a0906; --red:#c0432a; --parch:#e8e2d0; --line:rgba(201,39,39,.4); }
+  *{ box-sizing:border-box; }
+  body{ margin:0; min-height:100vh; display:flex; align-items:center; justify-content:center;
+    background:var(--bg); color:var(--parch); font-family:ui-monospace,Menlo,Consolas,monospace; padding:20px; }
+  main{ width:100%; max-width:520px; border:2px solid var(--red); padding:24px;
+    box-shadow:0 0 18px rgba(201,39,39,.25) inset; background:rgba(8,7,5,.8); }
+  h1{ margin:0 0 6px; text-align:center; color:var(--red); font-size:22px; letter-spacing:.12em; text-transform:uppercase; font-weight:400; }
+  .sub{ text-align:center; opacity:.65; font-size:13px; margin:0 0 20px; }
+  #drop{ display:block; border:1px dashed var(--line); padding:26px 12px; text-align:center; cursor:pointer; margin-bottom:16px; transition:.2s; }
+  #drop:hover,#drop.over{ border-color:var(--red); background:rgba(201,39,39,.08); }
+  input[type=file]{ display:none; }
+  fieldset{ border:1px solid var(--line); margin:0 0 16px; padding:12px; }
+  legend{ color:var(--red); font-size:12px; text-transform:uppercase; letter-spacing:.08em; padding:0 6px; }
+  label{ display:block; font-size:13px; margin-bottom:10px; }
+  select{ width:100%; margin-top:4px; background:#000; color:var(--parch); border:1px solid var(--line); padding:7px; font:inherit; }
+  button{ width:100%; padding:12px; background:rgba(201,39,39,.1); color:var(--parch); border:1px solid var(--red);
+    font:inherit; letter-spacing:.06em; cursor:pointer; text-transform:uppercase; }
+  button:hover:not(:disabled){ background:var(--red); color:#050403; }
+  button:disabled{ opacity:.35; cursor:not-allowed; }
+  #bar{ height:6px; background:rgba(255,255,255,.08); margin-top:16px; display:none; }
+  #fill{ height:100%; width:0; background:var(--red); transition:width .2s; }
+  #status{ font-size:13px; margin-top:12px; min-height:18px; opacity:.85; word-break:break-word; }
+  #result{ display:none; margin-top:12px; font-size:13px; border-top:1px solid var(--line); padding-top:12px; }
+  #result a{ color:var(--red); }
+</style>
+</head>
+<body>
+<main>
+  <h1>🜂 🜃 Resolve Converter 🜁 🜄</h1>
+  <p class="sub">Any video in. Small, DaVinci Resolve-ready MP4 out. Runs entirely in your browser.</p>
+
+  <label id="drop" for="file">Drop a video here or click to choose</label>
+  <input type="file" id="file" accept="video/*,.mp4,.webm,.mov,.mkv">
+
+  <fieldset>
+    <legend>Settings</legend>
+    <label>Quality / size
+      <select id="quality">
+        <option value="24">Smallest (CRF 24)</option>
+        <option value="21" selected>Balanced (CRF 21)</option>
+        <option value="18">High (CRF 18)</option>
+      </select>
+    </label>
+    <label>Frame rate
+      <select id="fps">
+        <option value="24">24 fps</option>
+        <option value="30" selected>30 fps</option>
+        <option value="60">60 fps</option>
+      </select>
+    </label>
+  </fieldset>
+
+  <button id="go" disabled>Convert</button>
+  <div id="bar"><div id="fill"></div></div>
+  <div id="status"></div>
+  <div id="result"></div>
+</main>
+
+<script>
+(() => {
+  const { FFmpeg } = FFmpegWASM;
+  const { toBlobURL, fetchFile } = FFmpegUtil;
+  const $ = id => document.getElementById(id);
+  const fileInput = $('file'), drop = $('drop'), go = $('go');
+  const bar = $('bar'), fill = $('fill'), status = $('status'), result = $('result');
+
+    const BASE = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+  const WORKER = 'https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/814.ffmpeg.js';
+  let ffmpeg = null, file = null, lastLog = '';
+
+  const mb = n => (n / 1048576).toFixed(2) + ' MB';
+
+  // Load the single-threaded core: works in Chrome, Firefox, Safari and Edge
+  // with no special server headers.
+  async function loadEngine(){
+    if (ffmpeg) return;
+    status.textContent = 'Loading converter engine (about 30 MB, cached after first use)…';
+    ffmpeg = new FFmpeg();
+    ffmpeg.on('log', ({ message }) => { lastLog = message; });
+    ffmpeg.on('progress', ({ progress }) => {
+      const p = Math.max(0, Math.min(1, progress));
+      fill.style.width = (p * 100).toFixed(0) + '%';
+      status.textContent = 'Converting… ' + (p * 100).toFixed(0) + '%';
+    });
+    await ffmpeg.load({
+      classWorkerURL: await toBlobURL(WORKER, 'text/javascript'),
+      coreURL: await toBlobURL(BASE + '/ffmpeg-core.js', 'text/javascript'),
+      wasmURL: await toBlobURL(BASE + '/ffmpeg-core.wasm', 'application/wasm'),
+    });
+  }
+
+  function setFile(f){
+    if (!f) return;
+    file = f;
+    drop.textContent = f.name + '  (' + mb(f.size) + ')';
+    go.disabled = false;
+    result.style.display = 'none';
+    status.textContent = '';
+  }
+  fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+  ['dragenter','dragover'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.add('over'); }));
+  ['dragleave','drop'].forEach(ev => drop.addEventListener(ev, e => { e.preventDefault(); drop.classList.remove('over'); }));
+  drop.addEventListener('drop', e => setFile(e.dataTransfer.files[0]));
+
+  go.addEventListener('click', async () => {
+    if (!file) return;
+    go.disabled = true;
+    result.style.display = 'none';
+    bar.style.display = 'block';
+    fill.style.width = '0%';
+    try {
+      await loadEngine();
+      status.textContent = 'Reading file…';
+      await ffmpeg.writeFile('in', await fetchFile(file));
+
+      const crf = $('quality').value, fps = $('fps').value;
+      // Constant frame rate, even dimensions, 8-bit 4:2:0, H.264 High + AAC,
+      // moov atom up front: the combination Resolve imports reliably.
+      const code = await ffmpeg.exec([
+        '-i', 'in',
+        '-vf', 'scale=trunc(iw/2)*2:trunc(ih/2)*2,fps=' + fps + ',format=yuv420p',
+        '-c:v', 'libx264', '-profile:v', 'high',
+        '-preset', 'medium', '-tune', 'animation', '-crf', crf,
+        '-g', fps, '-bf', '0',
+        '-af', 'aresample=async=1:first_pts=0',
+        '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2',
+        '-movflags', '+faststart',
+        'out.mp4'
+      ]);
+      if (code !== 0) throw new Error(lastLog || 'FFmpeg failed');
+
+      const data = await ffmpeg.readFile('out.mp4');
+      const blob = new Blob([data.buffer], { type: 'video/mp4' });
+      const url = URL.createObjectURL(blob);
+      const name = file.name.replace(/\.[^.]+$/, '') + '-resolve.mp4';
+      fill.style.width = '100%';
+      status.textContent = 'Done.';
+      result.innerHTML = 'Original: ' + mb(file.size) + ' → Converted: ' + mb(blob.size) +
+        '<br><br><a href="' + url + '" download="' + name + '">Download ' + name + '</a>';
+      result.style.display = 'block';
+      try { await ffmpeg.deleteFile('in'); await ffmpeg.deleteFile('out.mp4'); } catch(e){}
+    } catch (err) {
+      status.textContent = 'Error: ' + (err.message || err);
+    }
+    go.disabled = false;
+  });
+})();
+</script>
+</body>
+</html>
